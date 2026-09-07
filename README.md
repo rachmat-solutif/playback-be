@@ -101,7 +101,13 @@ npm run dev
 #    GET /api/audio/:conversationId  # local file or Azure SAS URL depending on env
 
 # 6. Run tests (requires MongoDB)
+#    Setup env for test (isolated childapp_test, no SAYA_SADAR_DROPDB_ guard needed):
+#    src/server/config.ts loads .env.test when NODE_ENV=test (vitest.server.config.ts)
+cp .env.test.example .env.test  # creates NODE_ENV=test, MONGO_URI=mongodb://localhost:27017/childapp_test
+#    No AUTH/ENTRA/AZURE needed -- tests run with disableAuth:true (setupTestDb)
+#    Ensure MongoDB from step 1 is still running: docker compose -f docker-compose.dev.yml up -d
 npm run test:server
+# one-off without file: MONGO_URI=mongodb://localhost:27017/childapp_test npm run test:server
 ```
 
 Production build:
