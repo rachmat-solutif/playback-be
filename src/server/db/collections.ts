@@ -63,6 +63,14 @@ export interface ConversationMetricDoc {
   first_response_seconds: number;
 }
 
+export interface UserDoc {
+  _id: ObjectId;
+  username: string;
+  password_hash: string;
+  role: 'user';
+  created_at: Date;
+}
+
 // --- Collection accessors ---
 
 export async function agents(): Promise<Collection<AgentDoc>> {
@@ -98,4 +106,9 @@ export async function audioFiles(): Promise<Collection<AudioFileDoc>> {
 export async function conversationMetrics(): Promise<Collection<ConversationMetricDoc>> {
   const db = await connectDb();
   return db.collection<ConversationMetricDoc>('conversation_metrics');
+}
+
+export async function users(): Promise<Collection<UserDoc>> {
+  const db = await connectDb();
+  return db.collection<UserDoc>('users');
 }

@@ -9,12 +9,14 @@
     "build": "tsc",
     "prod": "node src/dist-server/app.js",
     "start": "node --import tsx src/server/app.ts",
-    "db:seed": "tsx scripts/seed.ts && tsx scripts/migrate-indexes.ts",
+    "db:seed": "tsx scripts/seed.ts",
+    "db:seed:dummy": "tsx scripts/seed-dummy.ts && tsx scripts/migrate-indexes.ts",
     "db:export": "tsx scripts/export-db.ts",
     "db:import": "tsx scripts/import-db.ts",
     "db:indexes": "tsx scripts/migrate-indexes.ts",
     "db:clear": "tsx scripts/clear-db.ts",
     "db:seed:staging": "node scripts/staging-db.js seed",
+    "db:seed:dummy:staging": "node scripts/staging-db.js dummy",
     "db:clear:staging": "node scripts/staging-db.js clear",
     "db:indexes:staging": "node scripts/staging-db.js indexes",
     "gcloud:install": "node scripts/gcloud-infra-run.js npm install",
@@ -32,6 +34,7 @@
     "@fastify/rate-limit": "^9.1.0",
     "@fastify/secure-session": "^7.5.1",
     "@fastify/static": "^7.0.4",
+    "bcryptjs": "^3.0.3",
     "dotenv": "^16.6.1",
     "fastify": "^4.29.1",
     "mongodb": "^6.21.0",
@@ -40,6 +43,7 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20.19.43",
     "typescript": "^5.9.3",
     "vitest": "^2.1.9"

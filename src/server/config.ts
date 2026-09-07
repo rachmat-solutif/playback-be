@@ -35,7 +35,7 @@ export const envSchema = z
     PORT: z.coerce.number().int().positive().default(3000),
     MONGO_URI: z.string().min(1, 'MONGO_URI is required'),
 
-    AUTH_PROVIDER: z.enum(['entra', 'none']).default('none'),
+    AUTH_PROVIDER: z.enum(['entra', 'dummy', 'none']).default('none'),
     IMPORT_API_KEY: z.string().min(32).optional(),
 
     ENTRA_CLIENT_ID: z.string().min(1).optional(),
@@ -67,11 +67,11 @@ export const envSchema = z
   .superRefine((value, ctx) => {
     const protectedEnvironment = value.NODE_ENV === 'staging' || value.NODE_ENV === 'production';
 
-    if (protectedEnvironment && value.AUTH_PROVIDER !== 'entra') {
+    if (protectedEnvironment && !['entra', 'dummy'].includes(value.AUTH_PROVIDER)) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['AUTH_PROVIDER'],
-        message: 'AUTH_PROVIDER must be entra in staging and production',
+        message: 'AUTH_PROVIDER must be entra or dummy in staging and production',
       });
     }
 
@@ -81,6 +81,17 @@ export const envSchema = z
         path: ['AUTH_BYPASS'],
         message: 'AUTH_BYPASS is not allowed in staging or production',
       });
+    }
+
+    if (value.AUTH_PROVIDER === 'entra' || value.AUTH_PROVIDER === 'dummy') {
+      // SESSION_KEY format is required for entra and dummy (secure-session)
+      if (value.SESSION_KEY && !/^[0-9a-fA-F]{64}$/.test(value.SESSION_KEY)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['SESSION_KEY'],
+          message: 'SESSION_KEY must be a 32-byte hexadecimal value (64 characters)',
+        });
+      }
     }
 
     if (value.AUTH_PROVIDER === 'entra') {
@@ -93,12 +104,21 @@ export const envSchema = z
           });
         }
       }
+    }
 
-      if (value.SESSION_KEY && !/^[0-9a-fA-F]{64}$/.test(value.SESSION_KEY)) {
+    if (value.AUTH_PROVIDER === 'dummy') {
+      if (!value.SESSION_KEY) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ['SESSION_KEY'],
-          message: 'SESSION_KEY must be a 32-byte hexadecimal value (64 characters)',
+          message: 'SESSION_KEY is required when AUTH_PROVIDER=dummy',
+        });
+      }
+      if (!value.SESSION_PASSWORD) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['SESSION_PASSWORD'],
+          message: 'SESSION_PASSWORD is required when AUTH_PROVIDER=dummy',
         });
       }
     }

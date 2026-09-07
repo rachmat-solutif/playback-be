@@ -17,6 +17,7 @@ import { registerSession } from './auth/session.js';
 import { registerAuthGuard } from './auth/guard.js';
 import { entraAuthRoutes } from './auth/entra.js';
 import { bypassAuthRoutes } from './auth/bypass.js';
+import { dummyAuthRoutes } from './auth/dummy.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, '..', '..');
@@ -106,6 +107,8 @@ export async function buildApp(options: { disableAuth?: boolean } = {}) {
   // --- Auth routes (login, callback, logout, me) ---
   if (config.AUTH_PROVIDER === 'entra') {
     await app.register(entraAuthRoutes);
+  } else if (config.AUTH_PROVIDER === 'dummy') {
+    await app.register(dummyAuthRoutes);
   } else if (config.AUTH_BYPASS) {
     await app.register(bypassAuthRoutes);
   }

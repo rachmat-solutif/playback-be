@@ -6,6 +6,7 @@ import {
   transcriptSegments,
   audioFiles,
   conversationMetrics,
+  users,
 } from './collections.js';
 
 /**
@@ -48,6 +49,9 @@ export async function ensureIndexes(): Promise<void> {
 
   const tg = await tags();
   await tg.createIndex({ label: 1 }, { unique: true });
+
+  const u = await users();
+  await u.createIndex({ username: 1 }, { unique: true });
 
   console.log('[OK] All indexes ensured');
 }

@@ -2,7 +2,7 @@
 // Run database commands against the staging MongoDB by executing on the VM.
 // SSH credentials and env vars are already present in /opt/playback/.env.
 //
-// Usage: node scripts/staging-db.js <seed|clear|indexes>
+// Usage: node scripts/staging-db.js <seed|dummy|clear|indexes>
 
 import { execSync } from 'child_process';
 import { dirname, resolve } from 'path';
@@ -13,7 +13,7 @@ const projectRoot = resolve(__dirname, '..');
 const infraDir = resolve(projectRoot, 'infra-gcloud');
 
 const command = process.argv[2];
-const validCommands = { seed: 'db:seed', clear: 'db:clear', indexes: 'db:indexes' };
+const validCommands = { seed: 'db:seed', dummy: 'db:seed:dummy', clear: 'db:clear', indexes: 'db:indexes' };
 
 if (!validCommands[command]) {
   console.error(`Usage: node scripts/staging-db.js <${Object.keys(validCommands).join('|')}>`);

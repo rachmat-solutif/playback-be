@@ -43,7 +43,7 @@ export async function registerAuthGuard(
 ): Promise<void> {
   if (options.disabled) return;
 
-  const authEnabled = config.AUTH_PROVIDER === 'entra';
+  const authEnabled = config.AUTH_PROVIDER === 'entra' || config.AUTH_PROVIDER === 'dummy';
   const authBypass = config.AUTH_BYPASS;
   const importApiKey = config.IMPORT_API_KEY;
 

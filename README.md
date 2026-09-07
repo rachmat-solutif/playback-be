@@ -85,11 +85,13 @@ cp .env.development.example .env.development
 # See docs/LOCAL-AZURE-AUDIO-CHECKLIST.md for container/CORS setup and
 # docs/DEVOPS-AZURE-AUDIO.md for Entra app registration.
 
-# 4. Seed database (160 conversations + indexes)
-#    Requires MongoDB from step 1 (or remote URI). With Azure Blob configured,
-#    seed uploads public/audio/sample-call.wav as <conversation_id>.wav to the
-#    private container; without it, seed keeps local file references.
-npm run db:seed
+# 4. Seed database (1 dummy conversation via phone +62, guarded)
+#    Requires MongoDB from step 1 (or remote URI). Guard password: SAYASADAR.
+#    With Azure Blob configured, seed uploads public/audio/sample-call.wav as
+#    <conversation_id>.wav to the private container; without it, seed keeps
+#    local file reference. Legacy 160-row seed is available as `npm run db:seed:dummy`.
+SEED_GUARD=SAYASADAR npm run db:seed
+# Dummy login (AUTH_PROVIDER=dummy): POST /auth/login {username:"user", password:"123456"}
 
 # 5. Run API with hot reload
 npm run dev
@@ -127,12 +129,12 @@ Copy `.env.development.example` to `.env.development` (also `.env.staging`, `.en
 | `NODE_ENV` | -- | `development` | `development` / `staging` / `production` / `test` |
 | `PORT` | -- | `3000` | Fastify listen port |
 | `MONGO_URI` | yes | -- | `mongodb://localhost:27017/childapp` locally |
-| `AUTH_PROVIDER` | -- | `none` | `entra` required in staging/production |
+| `AUTH_PROVIDER` | -- | `none` | `entra` or `dummy` in staging/production (`dummy` = local user/123456, no Entra) |
 | `AUTH_BYPASS` | -- | `false` | `true` allows offline dev (blocked in staging/prod) |
 | `ENTRA_CLIENT_ID / TENANT_ID / CLIENT_SECRET / REDIRECT_URI` | when `AUTH_PROVIDER=entra` | -- | See `docs/DEVOPS-AZURE-AUDIO.md` |
 | `ENTRA_LOGOUT_URI` | -- | -- | Post-logout redirect |
-| `SESSION_KEY` | when entra | -- | `openssl rand -hex 32` (64 hex chars) |
-| `SESSION_PASSWORD` | when entra | -- | `openssl rand -base64 32` |
+| `SESSION_KEY` | when entra or dummy | -- | `openssl rand -hex 32` (64 hex chars) |
+| `SESSION_PASSWORD` | when entra or dummy | -- | `openssl rand -base64 32` |
 | `AZURE_STORAGE_CONNECTION_STRING` | -- | -- | Private container; app never creates it |
 | `AZURE_STORAGE_ACCOUNT_NAME` | -- | -- | Needed for SAS generation |
 | `AZURE_STORAGE_CONTAINER` | -- | `audio` | Blob container name |
@@ -144,7 +146,7 @@ Copy `.env.development.example` to `.env.development` (also `.env.staging`, `.en
 | `LOG_LEVEL` | -- | `info` | `trace` / `debug` / `info` / `warn` / `error` |
 | `SERVICE_NAME` | -- | `playback-server` | Pino base binding |
 
-`AUTH_PROVIDER` must be `entra` in `staging`/`production`; `AUTH_BYPASS=true` is rejected there. See `docs/LOCAL-AZURE-AUDIO-CHECKLIST.md` for local Azure audio.
+`AUTH_PROVIDER` must be `entra` or `dummy` in `staging`/`production`; `AUTH_BYPASS=true` is rejected there. See `docs/LOCAL-AZURE-AUDIO-CHECKLIST.md` for local Azure audio. Seeds are guarded: `SEED_GUARD=SAYASADAR` required for `npm run db:seed` (1-row) and `npm run db:seed:dummy` (160).
 
 ## Scripts
 
@@ -154,7 +156,8 @@ Copy `.env.development.example` to `.env.development` (also `.env.staging`, `.en
 | `npm run build` | Compile `src/server` -> `src/dist-server` |
 | `npm run prod` | Run compiled build |
 | `npm test` / `npm run test:server` | Vitest suite |
-| `npm run db:seed` | Drop + reseed + rebuild indexes |
+| `npm run db:seed` | Drop + reseed 1 dummy via phone +62 (Agent Dummy, Customer Dummy `+628123456789`, `user/123456`) + indexes -- requires `SEED_GUARD=SAYASADAR` |
+| `npm run db:seed:dummy` | Legacy 160 conversations (archived) -- requires `SEED_GUARD=SAYASADAR` |
 | `npm run db:export` | Snapshot schema + indexes + data (Extended JSON) |
 | `npm run db:import` | Validate/import snapshot (replace mode is destructive) |
 | `npm run db:indexes` | Recreate indexes only |
@@ -167,12 +170,12 @@ Copy `.env.development.example` to `.env.development` (also `.env.staging`, `.en
 
 ## API Endpoints
 
-All `/api/*` routes require a valid Entra session cookie (or `AUTH_BYPASS=true` in dev). Import routes also accept `Authorization: Bearer <IMPORT_API_KEY>`.
+All `/api/*` routes require a valid session cookie (`entra` or `dummy` `POST /auth/login`) or `AUTH_BYPASS=true` in dev. Import routes also accept `Authorization: Bearer <IMPORT_API_KEY>`.
 
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/health` | Health check (public) |
-| GET | `/auth/login`, `/auth/callback`, `/auth/logout`, `/auth/me` | Entra SSO (or bypass) |
+| GET/POST | `/auth/login`, `/auth/callback`, `/auth/logout`, `/auth/me` | Entra SSO, dummy `user/123456`, or bypass |
 | GET | `/api/conversations` | List with filters: `from`, `to`, `agent`, `channel`, `sentiment`, `tag`, `keyword`, `minDuration`, `page`, `limit` |
 | GET | `/api/conversations/:id` | Detail with agent, customer, tags, transcript, audio, metrics |
 | GET | `/api/analytics/volume` | Volume by day/hour + channel breakdown |
@@ -189,17 +192,20 @@ See `docs/IMPORT_API_EXAMPLES.md` for curl samples and `examples/import/` for sc
 
 ## Database
 
-Collections seeded by `scripts/seed.ts`:
+Collections seeded by `scripts/seed.ts` (new 1-row dummy, guarded `SEED_GUARD=SAYASADAR`):
 
 | Collection | Count | Purpose |
 |------------|-------|---------|
-| `agents` | 6 | Service agents |
-| `customers` | 100 | End customers |
-| `tags` | 7 | Topic labels |
-| `conversations` | 160 | Core searchable unit |
-| `transcript_segments` | ~1,588 | Timestamped dialogue |
-| `audio_files` | 160 | Metadata + blob key or local `sample-call.wav` |
-| `conversation_metrics` | 160 | Sentiment + handle time |
+| `agents` | 1 | Agent Dummy |
+| `customers` | 1 | Customer Dummy `+628123456789` |
+| `tags` | 1 | General |
+| `users` | 1 | `user` / `123456` (role `user`, `AUTH_PROVIDER=dummy`) |
+| `conversations` | 1 | Via phone `call` (`+62`) |
+| `transcript_segments` | 2 | Agent + customer |
+| `audio_files` | 1 | Metadata + blob key or local `sample-call.wav` |
+| `conversation_metrics` | 1 | Sentiment + handle time |
+
+Legacy 160-row seed is available as `SEED_GUARD=SAYASADAR npm run db:seed:dummy` (`scripts/seed-dummy.ts`: 6 agents / 100 customers / 7 tags / 160 conversations / ~1588 segments).
 
 Docs: `docs/DB_SCHEMA.md` and `docs/DB_BACKUP.md`.
 
@@ -242,7 +248,7 @@ Full installation guide: `docs/VERCEL_STAGING_SETUP.md` (Atlas free cluster, Blo
 Quick connect:
 
 - Vercel: Import `rachmat-solutif/playback-be` (branch `main`), Framework `Other`, Build `npm run build`, Node `22.x`, Domain `playback-be-staging.vercel.app`.
-- Env (Production): `NODE_ENV=staging`, `MONGO_URI` (Atlas `.../childapp?...`), `AUTH_PROVIDER=entra`, `ENTRA_*` (`REDIRECT_URI=https://playback-be-staging.vercel.app/auth/callback`), `SESSION_KEY` (`openssl rand -hex 32`), `SESSION_PASSWORD` (`openssl rand -base64 32`), `AZURE_STORAGE_*` + `AUDIO_SAS_*` + `APP_ORIGINS=https://playback-be-staging.vercel.app`. `AUTH_BYPASS` must not be set in staging.
+- Env (Production): `NODE_ENV=staging`, `MONGO_URI` (Atlas `.../childapp?...`), `AUTH_PROVIDER=dummy` (or `entra`), `ENTRA_*` only when `entra` (`REDIRECT_URI=https://playback-be-staging.vercel.app/auth/callback`), `SESSION_KEY` (`openssl rand -hex 32`), `SESSION_PASSWORD` (`openssl rand -base64 32`), `AZURE_STORAGE_*` + `AUDIO_SAS_*` + `APP_ORIGINS=https://playback-be-staging.vercel.app`. `AUTH_BYPASS` must not be set in staging. Seed: `SEED_GUARD=SAYASADAR npm run db:seed` (1-row phone) locally against Atlas.
 - Deploy on push to `main`; verify `curl -fsS https://playback-be-staging.vercel.app/health` and Entra login flow.
 
 ### Staging -- GCP (archival alternative)

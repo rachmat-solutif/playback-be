@@ -1,6 +1,6 @@
 # Vercel Staging Setup -- Free Hosting
 
-Deploy `playback-be` to **Vercel (Hobby, free)** at `https://playback-be-staging.vercel.app` with **MongoDB Atlas (M0 free)**, **Microsoft Entra ID**, and **Azure Blob Storage (private container, SAS URLs)**.
+Deploy `playback-be` to **Vercel (Hobby, free)** at `https://playback-be-staging.vercel.app` with **MongoDB Atlas (M0 free)**, **Microsoft Entra ID or dummy `user/123456`**, and **Azure Blob Storage (private container, SAS URLs)**.
 
 > Archival alternative GCP staging remains in `infra-gcloud/` and `README.md -- Deployment`. This guide is the recommended free staging path when GCP billing is not available.
 
@@ -23,7 +23,7 @@ Vercel Hobby limits (2026): 100 GB bandwidth/month, 100 GB-hours serverless exec
 
 ## 1. MongoDB Atlas -- M0 Free Cluster
 
-Atlas M0 is free forever; no credit card required. 512 MB is enough for the seed (160 conversations, ~2000 docs).
+Atlas M0 is free forever; no credit card required. Canonical seed is **1 dummy conversation via phone +62** (`Agent Dummy`, `Customer Dummy +628123456789`, `user/123456`); 512 MB is more than enough. Legacy 160-row seed remains as `SEED_GUARD=SAYASADAR npm run db:seed:dummy`.
 
 1. Create Atlas account at https://cloud.mongodb.com -- Sign up (Google/GitHub).
 2. Create project: `playback-staging` -- Project > New Project.
@@ -34,11 +34,12 @@ Atlas M0 is free forever; no credit card required. 512 MB is enough for the seed
 7. Test locally (optional):
 
 ```bash
-MONGO_URI='mongodb+srv://...' npm run db:seed
+SEED_GUARD=SAYASADAR MONGO_URI='mongodb+srv://...' npm run db:seed
+SEED_GUARD=SAYASADAR MONGO_URI='mongodb+srv://...' npm run db:seed:dummy  # legacy 160
 mongosh 'mongodb+srv://...' --eval 'db.conversations.countDocuments()'
 ```
 
-Keep this URI secret; it will go into Vercel env `MONGO_URI`.
+All seeds are guarded: `SEED_GUARD=SAYASADAR` (or `--guard=SAYASADAR`). Keep this URI secret; it will go into Vercel env `MONGO_URI`.
 
 ## 2. Azure Blob Storage -- Private Container + CORS
 
@@ -97,7 +98,15 @@ Notes:
 - SAS policy: Storage account > Configuration > SAS expiration policy > Upper limit `1 hour 15 minutes` (app uses 60 min + 5 min skew = 65 min).
 - Container must exist before `npm run db:seed`; seed uploads `public/audio/sample-call.wav` as `<conversationId>.wav` when Blob is configured, otherwise it keeps local fallback.
 
-## 3. Microsoft Entra ID -- App Registration for Vercel
+## 3. Auth -- Entra ID (SSO) or Dummy (`user/123456`)
+
+For free staging without Azure AD, use **dummy** auth: `AUTH_PROVIDER=dummy`, login `POST /auth/login {username:"user", password:"123456"}` (seeded by `SEED_GUARD=SAYASADAR npm run db:seed`). No Entra app needed. For SSO staging, use Entra below.
+
+### 3a. Dummy (no Entra -- recommended for free Vercel)
+
+Set Vercel env `AUTH_PROVIDER=dummy`, `SESSION_KEY`, `SESSION_PASSWORD` (below) and skip this section. Seed creates `user` with bcrypt hash of `123456`, role `user`, Indonesia dummy `+628123456789` via `call`.
+
+### 3b. Microsoft Entra ID -- App Registration for Vercel
 
 Create a dedicated registration for staging; do not reuse local registration.
 
@@ -169,17 +178,17 @@ curl -i http://localhost:3000/health
    - Install Command: `npm ci`
    - Node Version: `22.x` (Project Settings > General > Node.js Version)
 3. Domain: Vercel auto-assigns `playback-be-staging.vercel.app` if project name is `playback-be-staging`. Otherwise Settings > Domains > Add `playback-be-staging.vercel.app` (or rename project to `playback-be-staging` so the default `*.vercel.app` matches). Verify `https://playback-be-staging.vercel.app` is the production deployment URL for the `main` branch.
-4. Environment Variables: Settings > Environment Variables > Add each key from `.env.staging.example` for `Production` (and `Preview` if you want PR previews to use staging Atlas). Mark secrets as Sensitive (eye icon). Required set:
+4. Environment Variables: Settings > Environment Variables > Add each key from `.env.staging.example` for `Production` (and `Preview` if you want PR previews to use staging Atlas). Mark secrets as Sensitive (eye icon). Required set (dummy shown; for Entra replace `AUTH_PROVIDER` and add `ENTRA_*`):
 
 ```
 NODE_ENV=staging
 MONGO_URI=mongodb+srv://.../childapp?retryWrites=true&w=majority
-AUTH_PROVIDER=entra
-ENTRA_CLIENT_ID=...
-ENTRA_TENANT_ID=...
-ENTRA_CLIENT_SECRET=...
-ENTRA_REDIRECT_URI=https://playback-be-staging.vercel.app/auth/callback
-ENTRA_LOGOUT_URI=https://playback-be-staging.vercel.app/login
+AUTH_PROVIDER=dummy
+# ENTRA_CLIENT_ID=...            # only when AUTH_PROVIDER=entra
+# ENTRA_TENANT_ID=...
+# ENTRA_CLIENT_SECRET=...
+# ENTRA_REDIRECT_URI=https://playback-be-staging.vercel.app/auth/callback
+# ENTRA_LOGOUT_URI=https://playback-be-staging.vercel.app/login
 SESSION_KEY=<64 hex>
 SESSION_PASSWORD=<base64 32>
 AZURE_STORAGE_CONNECTION_STRING=DefaultEndpointsProtocol=https;AccountName=...;AccountKey=...;EndpointSuffix=core.windows.net
@@ -217,7 +226,7 @@ vercel --prod
 
 ## 6. Seed Staging Data
 
-Atlas is empty on first deploy. Seed from local machine using the Atlas URI (container must already exist):
+Atlas is empty on first deploy. Seed from local machine using the Atlas URI (container must already exist). All seeds require `SEED_GUARD=SAYASADAR`:
 
 ```bash
 # Use the same URI as Vercel
@@ -227,8 +236,8 @@ export AZURE_STORAGE_ACCOUNT_NAME=playbackstgxxxxx
 export AZURE_STORAGE_CONTAINER=audio
 export NODE_ENV=staging  # so seed uses staging config path
 
-npm run db:seed          # drops + seeds 160 conversations + uploads sample wav to Blob as <id>.wav
-npm run db:indexes       # rebuild indexes (also done by seed)
+SEED_GUARD=SAYASADAR npm run db:seed          # 1 dummy via phone +62: Agent Dummy + Customer Dummy +628123456789 + user/123456 (+ indexes)
+SEED_GUARD=SAYASADAR npm run db:seed:dummy    # legacy 160 conversations + uploads sample wav to Blob as <id>.wav (alternate)
 ```
 
 Alternatively run via Vercel: `vercel env pull .env.staging.local` to get remote env, then seed. Do not run seed from Vercel function itself (no shell there).
@@ -239,15 +248,22 @@ Verify:
 curl -fsS https://playback-be-staging.vercel.app/health
 # -> {"status":"ok","timestamp":"..."}
 
-# Authenticated check: open in browser https://playback-be-staging.vercel.app/auth/login
-# -> redirects to login.microsoftonline.com -> after login redirects to /
+# Authenticated check (dummy): POST login
+curl -fsS -c jar -X POST https://playback-be-staging.vercel.app/auth/login \
+  -H 'Content-Type: application/json' -d '{"username":"user","password":"123456"}'
+# -> {"ok":true,"username":"user","role":"user"}
 # -> GET https://playback-be-staging.vercel.app/auth/me should return {userId,email,name,roles}
+curl -fsS -b jar https://playback-be-staging.vercel.app/auth/me | jq .
+
+# Entra alternative: open in browser https://playback-be-staging.vercel.app/auth/login
+# -> redirects to login.microsoftonline.com -> after login redirects to /
 
 # API (requires session cookie from login, or use IMPORT_API_KEY for import)
-curl -fsS -b 'session=...' https://playback-be-staging.vercel.app/api/conversations | jq .
+curl -fsS -b jar https://playback-be-staging.vercel.app/api/conversations | jq .
+# -> 1 dummy call via +62
 
 # Audio SAS (requires auth cookie)
-curl -fsS -b 'session=...' https://playback-be-staging.vercel.app/api/audio/<conversationId> | jq .
+curl -fsS -b jar https://playback-be-staging.vercel.app/api/audio/<conversationId> | jq .
 # -> {"url":"https://playbackstgxxxxx.blob.core.windows.net/audio/...?sv=...&sig=..."}
 ```
 
@@ -266,7 +282,7 @@ curl -X POST https://playback-be-staging.vercel.app/api/import \
 - [ ] Unauthenticated `GET /api/conversations` returns 401 or redirects (auth guard active).
 - [ ] `GET /auth/login` redirects to `login.microsoftonline.com` with `client_id` = `ENTRA_CLIENT_ID`.
 - [ ] After login, `GET /auth/me` returns user JSON (session cookie `httpOnly`, `secure`, `sameSite=lax`).
-- [ ] `GET /api/conversations` with session cookie returns paginated JSON (160 seeded).
+- [ ] `GET /api/conversations` with session cookie returns paginated JSON (1 dummy seeded, `channel:call` `+628123456789`; legacy 160 if `db:seed:dummy` used).
 - [ ] `GET /api/audio/:id` returns `{url: "https://...blob.core.windows.net/audio/...?sv=...&sig=..."}` with `sp=r`, `spr=https`, expiry 60 min from issuance, `st` 5 min in past.
 - [ ] Browser playback fetches directly from Blob (DevTools Network shows `Range` requests, 206 on seek). No SAS in app logs.
 - [ ] Atlas Metrics shows connections from Vercel (Network Access 0.0.0.0/0, Connections < 500).
@@ -277,7 +293,7 @@ curl -X POST https://playback-be-staging.vercel.app/api/import \
 
 | Symptom | Fix |
 |--------|-----|
-| `Invalid environment variables: AUTH_PROVIDER must be entra in staging` | Set `AUTH_PROVIDER=entra` and remove `AUTH_BYPASS`. Redeploy. |
+| `Invalid environment variables: AUTH_PROVIDER must be entra or dummy in staging` | Set `AUTH_PROVIDER=entra` or `dummy` and remove `AUTH_BYPASS`. Redeploy. |
 | `AUTH_BYPASS is not allowed in staging or production` | Unset `AUTH_BYPASS` in Vercel env. |
 | `SESSION_KEY must be a 32-byte hexadecimal value` | Regenerate with `openssl rand -hex 32` (64 hex chars, no prefix). |
 | `MongoDB connection failed on cold start` | Check Atlas IP whitelist `0.0.0.0/0`, user password URL-encoded, `MONGO_URI` includes `childapp` db. Test with `mongosh`. |

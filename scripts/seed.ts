@@ -1,16 +1,20 @@
 /**
- * Seed script for Playback database.
- * Uses mulberry32 PRNG for deterministic data (same seed = same data every run).
- * Matches the shape of the existing frontend mock in src/data/conversations.js.
+ * Seed script for Playback database -- 1-row dummy (canonical).
+ * Creates complete schema + indexes with 1 dummy conversation via phone (+62 Indonesia)
+ * and 1 dummy user for login without Entra (AUTH_PROVIDER=dummy).
  *
- * Usage: npm run db:seed
+ * Guarded: requires SEED_GUARD=SAYASADAR or --guard=SAYASADAR (destructive).
+ * Usage: SEED_GUARD=SAYASADAR npm run db:seed
+ *        SEED_GUARD=SAYASADAR npm run db:seed:dummy  (legacy 160 rows is seed-dummy.ts)
  */
 
 import { ObjectId } from 'mongodb';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import bcrypt from 'bcryptjs';
 import { connectDb, disconnectDb } from '../src/server/db/connection.js';
+import { ensureIndexes } from '../src/server/db/indexes.js';
 import {
   containerExists,
   isBlobStorageConfigured,
@@ -21,117 +25,20 @@ const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '
 const SAMPLE_AUDIO_PATH = path.join(projectRoot, 'public', 'audio', 'sample-call.wav');
 const SAMPLE_AUDIO_CONTENT_TYPE = 'audio/wav';
 
-type AudioSeedDoc = {
-  _id: ObjectId;
-  conversation_id: ObjectId;
-  url: string;
-  blob_name?: string;
-  duration_seconds: number;
-  format: string;
-};
-
-// --- Deterministic PRNG (same as frontend mock) ---
-
-function mulberry32(seed: number) {
-  let a = seed;
-  return function () {
-    a |= 0;
-    a = (a + 0x6d2b79f5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
+function assertGuard() {
+  const guard =
+    process.env.SEED_GUARD ||
+    process.argv.find((a) => a.startsWith('--guard='))?.split('=')[1];
+  if (guard !== 'SAYASADAR') {
+    console.error('Refusing to seed: set SEED_GUARD=SAYASADAR or --guard=SAYASADAR');
+    console.error('Example: SEED_GUARD=SAYASADAR npm run db:seed');
+    process.exit(1);
+  }
 }
-
-const rand = mulberry32(20260706);
-const pick = <T>(arr: T[]): T => arr[Math.floor(rand() * arr.length)];
-const between = (min: number, max: number) => Math.floor(rand() * (max - min + 1)) + min;
-
-// Deterministic ObjectId generation (based on index)
-function makeId(index: number): ObjectId {
-  const hex = index.toString(16).padStart(24, '0');
-  return new ObjectId(hex);
-}
-
-// --- Constants (matching src/lib/constants.js) ---
-
-const AGENT_NAMES = [
-  'Maya Chen',
-  'Diego Alvarez',
-  'Priya Nair',
-  'Sam Whitfield',
-  'Tanya Brooks',
-  'Omar Haddad',
-];
-
-const TAG_LABELS = [
-  'Billing',
-  'Technical Support',
-  'Account',
-  'Shipping',
-  'Returns',
-  'Cancellation',
-  'Product Info',
-];
-
-const TEAMS = ['Support', 'Billing', 'Technical'];
-
-const FIRST_NAMES = [
-  'Jordan', 'Casey', 'Riley', 'Avery', 'Morgan',
-  'Quinn', 'Harper', 'Rowan', 'Devon', 'Skyler',
-  'Elena', 'Marcus', 'Nadia', 'Theo', 'Isla',
-];
-
-const LAST_NAMES = [
-  'Reyes', 'Kim', 'Novak', 'Osei', 'Fischer',
-  'Baptiste', 'Lindqvist', 'Costa', 'Iqbal', 'Moreau',
-  'Bauer', 'Silva',
-];
-
-const CHANNELS = ['call', 'chat', 'email'] as const;
-const STATUSES = ['resolved', 'resolved', 'resolved', 'escalated'] as const;
-
-// Sample transcript phrases by speaker
-const AGENT_PHRASES = [
-  'Thank you for calling, how can I help you today?',
-  'I understand your concern. Let me look into that for you.',
-  'Can you please verify your account email address?',
-  'I can see the issue on my end. Let me get that resolved.',
-  'Is there anything else I can help you with?',
-  'I\'ve updated your account with those changes.',
-  'Let me transfer you to our specialist team for this.',
-  'I apologize for the inconvenience. We\'ll get this sorted.',
-  'Your refund has been processed and should appear in 3-5 days.',
-  'I\'ve made a note on your account about this issue.',
-  'Let me check the status of your order.',
-  'That\'s a great question. Here\'s what I can tell you.',
-  'I\'ve escalated this to our senior team for review.',
-  'Thank you for your patience while I look into this.',
-  'I\'ve sent a confirmation email to your address on file.',
-];
-
-const CUSTOMER_PHRASES = [
-  'Hi, I\'m having a problem with my recent order.',
-  'I was charged twice for my subscription.',
-  'Can you help me reset my password?',
-  'I\'d like to cancel my service please.',
-  'When will my refund be processed?',
-  'The product I received is damaged.',
-  'I haven\'t received my shipping confirmation yet.',
-  'I need to update my billing information.',
-  'Why was my account suspended?',
-  'I\'d like to upgrade my plan.',
-  'The website keeps giving me an error.',
-  'I need help setting up my new device.',
-  'Can I get a discount on my next order?',
-  'Thank you, that resolves my issue.',
-  'Yes, that\'s all I needed. Thanks for your help!',
-];
-
-// --- Generate data ---
 
 async function seed() {
-  console.log('Seeding database...');
+  assertGuard();
+  console.log('Seeding database (1-row dummy)...');
 
   const azureAudioEnabled = isBlobStorageConfigured();
   let sampleAudioSize = 0;
@@ -148,131 +55,121 @@ async function seed() {
     console.log(`Azure Blob Storage configured; sample audio source: ${SAMPLE_AUDIO_PATH}`);
   }
 
-  // --- Agents ---
-  const agentDocs = AGENT_NAMES.map((name, i) => ({
-    _id: makeId(100 + i),
-    name,
-    email: `${name.toLowerCase().replace(' ', '.')}@company.com`,
-    team: TEAMS[i % TEAMS.length],
-  }));
+  // --- Dummy IDs (deterministic, distinct range) ---
+  const agentId = new ObjectId('000000000000000000000064');
+  const customerId = new ObjectId('0000000000000000000000c8');
+  const tagId = new ObjectId('0000000000000000000000ff');
+  const conversationId = new ObjectId('000000000000000000000001');
+  const userId = new ObjectId('0000000000000000000000a0');
 
-  // --- Tags ---
-  const tagDocs = TAG_LABELS.map((label, i) => ({
-    _id: makeId(200 + i),
-    label,
-  }));
+  const agentDocs = [
+    {
+      _id: agentId,
+      name: 'Agent Dummy',
+      email: 'agent-dummy@company.com',
+      team: 'Support',
+    },
+  ];
 
-  // --- Customers ---
-  const now = new Date();
-  const customerDocs = Array.from({ length: 100 }, (_, i) => ({
-    _id: makeId(1000 + i),
-    name: `${pick(FIRST_NAMES)} ${pick(LAST_NAMES)}`,
-    email: `customer${i}@example.com`,
-    phone: `+1${between(1000000000, 9999999999)}`,
-    created_at: new Date(now.getTime() - rand() * 90 * 24 * 60 * 60 * 1000),
-  }));
+  const tagDocs = [
+    {
+      _id: tagId,
+      label: 'General',
+    },
+  ];
 
-  // --- Conversations + related data ---
-  const conversationDocs: Record<string, unknown>[] = [];
-  const segmentDocs: Record<string, unknown>[] = [];
-  const audioDocs: AudioSeedDoc[] = [];
-  const metricDocs: Record<string, unknown>[] = [];
+  const customerDocs = [
+    {
+      _id: customerId,
+      name: 'Customer Dummy',
+      email: 'customer-dummy@example.com',
+      phone: '+628123456789',
+      created_at: new Date(),
+    },
+  ];
 
-  const refDate = new Date();
-  refDate.setHours(23, 59, 0, 0);
+  const started = new Date();
+  started.setHours(10, 0, 0, 0);
+  const durationSec = 90;
+  const endedAt = new Date(started.getTime() + durationSec * 1000);
 
-  for (let i = 0; i < 160; i++) {
-    const convId = makeId(1 + i);
-    const agent = pick(agentDocs);
-    const customer = pick(customerDocs);
-    const tag = pick(tagDocs);
-
-    // Spread conversations across the last 60 days
-    const daysAgo = between(0, 59);
-    const started = new Date(refDate);
-    started.setDate(started.getDate() - daysAgo);
-
-    // Bias toward working hours
-    const hourPool = [8, 9, 9, 10, 10, 11, 11, 12, 13, 13, 14, 14, 15, 15, 16, 16, 17, 18, 19, 20];
-    started.setHours(pick(hourPool), between(0, 59), 0, 0);
-
-    const durationSec = between(90, 900);
-    const endedAt = new Date(started.getTime() + durationSec * 1000);
-    const channel = pick([...CHANNELS]);
-    const status = pick([...STATUSES]);
-
-    conversationDocs.push({
-      _id: convId,
-      customer_id: customer._id,
-      agent_id: agent._id,
-      channel,
+  const conversationDocs = [
+    {
+      _id: conversationId,
+      customer_id: customerId,
+      agent_id: agentId,
+      channel: 'call' as const,
       started_at: started,
       ended_at: endedAt,
       duration_seconds: durationSec,
-      status,
-      tag_ids: [tag._id],
+      status: 'resolved' as const,
+      tag_ids: [tagId],
       created_at: started,
-    });
+    },
+  ];
 
-    // --- Transcript segments (5-15 per conversation) ---
-    const segmentCount = between(5, 15);
-    const avgInterval = Math.floor(durationSec / segmentCount);
-
-    for (let s = 0; s < segmentCount; s++) {
-      const speaker = s % 2 === 0 ? 'agent' : 'customer';
-      const phrases = speaker === 'agent' ? AGENT_PHRASES : CUSTOMER_PHRASES;
-      segmentDocs.push({
-        _id: new ObjectId(),
-        conversation_id: convId,
-        speaker,
-        timestamp_seconds: Math.min(s * avgInterval + between(0, 10), durationSec),
-        text: pick(phrases),
-      });
-    }
-
-    // --- Audio file ---
-    const audioBlobName = azureAudioEnabled ? `${convId.toHexString()}.wav` : undefined;
-    audioDocs.push({
+  const segmentDocs = [
+    {
       _id: new ObjectId(),
-      conversation_id: convId,
+      conversation_id: conversationId,
+      speaker: 'agent' as const,
+      timestamp_seconds: 2,
+      text: 'Thank you for calling, how can I help you today?',
+    },
+    {
+      _id: new ObjectId(),
+      conversation_id: conversationId,
+      speaker: 'customer' as const,
+      timestamp_seconds: 45,
+      text: 'Hi, I am having a problem with my recent order via phone.',
+    },
+  ];
+
+  const audioBlobName = azureAudioEnabled ? `${conversationId.toHexString()}.wav` : undefined;
+  const audioDocs = [
+    {
+      _id: new ObjectId(),
+      conversation_id: conversationId,
       url: `/audio/${audioBlobName || 'sample-call.wav'}`,
       ...(audioBlobName ? { blob_name: audioBlobName } : {}),
       duration_seconds: durationSec,
       format: 'wav',
-    });
+    },
+  ];
 
-    // --- Conversation metrics ---
-    const sentimentScore = +(rand() * 2 - 1).toFixed(2); // -1.00 to 1.00
-    const sentimentLabel =
-      sentimentScore > 0.3 ? 'positive' : sentimentScore < -0.3 ? 'negative' : 'neutral';
-
-    metricDocs.push({
+  const metricDocs = [
+    {
       _id: new ObjectId(),
-      conversation_id: convId,
-      sentiment_score: sentimentScore,
-      sentiment_label: sentimentLabel,
-      handle_time_seconds: durationSec + between(-30, 60), // slightly differ from raw duration
-      first_response_seconds: between(5, 45),
-    });
-  }
+      conversation_id: conversationId,
+      sentiment_score: 0.2,
+      sentiment_label: 'neutral' as const,
+      handle_time_seconds: 95,
+      first_response_seconds: 10,
+    },
+  ];
+
+  const passwordHash = await bcrypt.hash('123456', 10);
+  const userDocs = [
+    {
+      _id: userId,
+      username: 'user',
+      password_hash: passwordHash,
+      role: 'user' as const,
+      created_at: new Date(),
+    },
+  ];
 
   if (azureAudioEnabled) {
-    console.log(`Uploading ${audioDocs.length} Azure audio blobs...`);
-    for (let i = 0; i < audioDocs.length; i++) {
-      const audio = audioDocs[i];
-      if (!audio.blob_name) {
-        throw new Error(`Missing Azure blob name for seeded conversation ${audio.conversation_id}`);
-      }
-      await uploadAudio(
-        fs.createReadStream(SAMPLE_AUDIO_PATH),
-        audio.blob_name,
-        SAMPLE_AUDIO_CONTENT_TYPE,
-        sampleAudioSize,
-      );
-      if ((i + 1) % 20 === 0 || i + 1 === audioDocs.length) {
-        console.log(`  Uploaded ${i + 1}/${audioDocs.length} audio blobs`);
-      }
-    }
+    const audio = audioDocs[0] as any;
+    if (!audio.blob_name) throw new Error('Missing blob_name for dummy conversation');
+    console.log('Uploading 1 Azure audio blob...');
+    await uploadAudio(
+      fs.createReadStream(SAMPLE_AUDIO_PATH),
+      audio.blob_name,
+      SAMPLE_AUDIO_CONTENT_TYPE,
+      sampleAudioSize,
+    );
+    console.log('  Uploaded 1/1 audio blobs');
   }
 
   const db = await connectDb();
@@ -284,28 +181,35 @@ async function seed() {
   }
   console.log('  Dropped existing collections');
 
-  await db.collection('agents').insertMany(agentDocs);
-  console.log(`  ${agentDocs.length} agents`);
+  await db.collection('agents').insertMany(agentDocs as any);
+  console.log(`  ${agentDocs.length} agents (Agent Dummy)`);
 
-  await db.collection('tags').insertMany(tagDocs);
+  await db.collection('tags').insertMany(tagDocs as any);
   console.log(`  ${tagDocs.length} tags`);
 
-  await db.collection('customers').insertMany(customerDocs);
-  console.log(`  ${customerDocs.length} customers`);
+  await db.collection('customers').insertMany(customerDocs as any);
+  console.log(`  ${customerDocs.length} customers (Customer Dummy +628123456789)`);
 
-  await db.collection('conversations').insertMany(conversationDocs);
-  console.log(`  ${conversationDocs.length} conversations`);
+  await db.collection('users').insertMany(userDocs as any);
+  console.log(`  ${userDocs.length} users (user/123456)`);
 
-  await db.collection('transcript_segments').insertMany(segmentDocs);
+  await db.collection('conversations').insertMany(conversationDocs as any);
+  console.log(`  ${conversationDocs.length} conversations (call via phone +62)`);
+
+  await db.collection('transcript_segments').insertMany(segmentDocs as any);
   console.log(`  ${segmentDocs.length} transcript segments`);
 
-  await db.collection('audio_files').insertMany(audioDocs);
+  await db.collection('audio_files').insertMany(audioDocs as any);
   console.log(`  ${audioDocs.length} audio files`);
 
-  await db.collection('conversation_metrics').insertMany(metricDocs);
+  await db.collection('conversation_metrics').insertMany(metricDocs as any);
   console.log(`  ${metricDocs.length} conversation metrics`);
 
-  console.log('\nSeed complete!');
+  await ensureIndexes();
+  console.log('  Indexes ensured');
+
+  console.log('\nSeed complete! Dummy conversation ready via phone (+62).');
+  console.log('Login: POST /auth/login {username:"user", password:"123456"} (AUTH_PROVIDER=dummy)');
   await disconnectDb();
 }
 
