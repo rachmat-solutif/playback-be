@@ -86,11 +86,11 @@ cp .env.development.example .env.development
 # docs/DEVOPS-AZURE-AUDIO.md for Entra app registration.
 
 # 4. Seed database (1 dummy conversation via phone +62, guarded)
-#    Requires MongoDB from step 1 (or remote URI). Guard password: SAYASADAR.
+#    Requires MongoDB from step 1 (or remote URI). Guard: SAYA_SADAR_DROPDB_{HH}:{MM} (current time, e.g. SAYA_SADAR_DROPDB_14:05).
 #    With Azure Blob configured, seed uploads public/audio/sample-call.wav as
 #    <conversation_id>.wav to the private container; without it, seed keeps
 #    local file reference. Full dummy dataset (160 conversations) is available as `npm run db:seed:dummy`.
-SEED_GUARD=SAYASADAR npm run db:seed
+SEED_GUARD=SAYA_SADAR_DROPDB_$(date +%H:%M) npm run db:seed  # or SEED_GUARD=SAYA_SADAR_DROPDB_14:05
 # Dummy login (AUTH_PROVIDER=dummy): POST /auth/login {username:"user", password:"123456"}
 
 # 5. Run API with hot reload
@@ -146,7 +146,7 @@ Copy `.env.development.example` to `.env.development` (also `.env.staging`, `.en
 | `LOG_LEVEL` | -- | `info` | `trace` / `debug` / `info` / `warn` / `error` |
 | `SERVICE_NAME` | -- | `playback-server` | Pino base binding |
 
-`AUTH_PROVIDER` must be `entra` or `dummy` in `staging`/`production`; `AUTH_BYPASS=true` is rejected there. See `docs/LOCAL-AZURE-AUDIO-CHECKLIST.md` for local Azure audio. Seeds are guarded: `SEED_GUARD=SAYASADAR` required for `npm run db:seed` (1-row) and `npm run db:seed:dummy` (160).
+`AUTH_PROVIDER` must be `entra` or `dummy` in `staging`/`production`; `AUTH_BYPASS=true` is rejected there. See `docs/LOCAL-AZURE-AUDIO-CHECKLIST.md` for local Azure audio. Seeds are guarded: `SEED_GUARD=SAYA_SADAR_DROPDB_{HH}:{MM}` (e.g. `SAYA_SADAR_DROPDB_14:05` for current `HH:MM`) required; invalid guard prints the correct value.
 
 ## Scripts
 
@@ -156,8 +156,8 @@ Copy `.env.development.example` to `.env.development` (also `.env.staging`, `.en
 | `npm run build` | Compile `src/server` -> `src/dist-server` |
 | `npm run prod` | Run compiled build |
 | `npm test` / `npm run test:server` | Vitest suite |
-| `npm run db:seed` | Drop + reseed 1 dummy via phone +62 (Agent Dummy, Customer Dummy `+628123456789`, `user/123456`) + indexes -- requires `SEED_GUARD=SAYASADAR` |
-| `npm run db:seed:dummy` | Full dummy dataset: 160 conversations (alternative) -- requires `SEED_GUARD=SAYASADAR` |
+| `npm run db:seed` | Drop + reseed 1 dummy via phone +62 (Agent Dummy, Customer Dummy `+628123456789`, `user/123456`) + indexes -- requires `SEED_GUARD=SAYA_SADAR_DROPDB_{HH}:{MM}` |
+| `npm run db:seed:dummy` | Full dummy dataset: 160 conversations (alternative) -- requires `SEED_GUARD=SAYA_SADAR_DROPDB_{HH}:{MM}` |
 | `npm run db:export` | Snapshot schema + indexes + data (Extended JSON) |
 | `npm run db:import` | Validate/import snapshot (replace mode is destructive) |
 | `npm run db:indexes` | Recreate indexes only |
@@ -192,7 +192,7 @@ See `docs/IMPORT_API_EXAMPLES.md` for curl samples and `examples/import/` for sc
 
 ## Database
 
-Collections seeded by `scripts/seed.ts` (new 1-row dummy, guarded `SEED_GUARD=SAYASADAR`):
+Collections seeded by `scripts/seed.ts` (new 1-row dummy, guarded `SEED_GUARD=SAYA_SADAR_DROPDB_{HH}:{MM}`):
 
 | Collection | Count | Purpose |
 |------------|-------|---------|
@@ -205,7 +205,7 @@ Collections seeded by `scripts/seed.ts` (new 1-row dummy, guarded `SEED_GUARD=SA
 | `audio_files` | 1 | Metadata + blob key or local `sample-call.wav` |
 | `conversation_metrics` | 1 | Sentiment + handle time |
 
-Full dummy dataset (160 conversations) is available as `SEED_GUARD=SAYASADAR npm run db:seed:dummy` (`scripts/seed-dummy.ts`: 6 agents / 100 customers / 7 tags / 160 conversations / ~1588 segments).
+Full dummy dataset (160 conversations) is available as `SEED_GUARD=SAYA_SADAR_DROPDB_$(date +%H:%M) npm run db:seed:dummy` (e.g. `SAYA_SADAR_DROPDB_14:05`) (`scripts/seed-dummy.ts`: 6 agents / 100 customers / 7 tags / 160 conversations / ~1588 segments).
 
 Docs: `docs/DB_SCHEMA.md` and `docs/DB_BACKUP.md`.
 
@@ -248,7 +248,7 @@ Full installation guide: `docs/VERCEL_STAGING_SETUP.md` (Atlas free cluster, Blo
 Quick connect:
 
 - Vercel: Import `rachmat-solutif/playback-be` (branch `main`), Framework `Other`, Build `npm run build`, Node `22.x`, Domain `playback-be-staging.vercel.app`.
-- Env (Production): `NODE_ENV=staging`, `MONGO_URI` (Atlas `.../childapp?...`), `AUTH_PROVIDER=dummy` (or `entra`), `ENTRA_*` only when `entra` (`REDIRECT_URI=https://playback-be-staging.vercel.app/auth/callback`), `SESSION_KEY` (`openssl rand -hex 32`), `SESSION_PASSWORD` (`openssl rand -base64 32`), `AZURE_STORAGE_*` + `AUDIO_SAS_*` + `APP_ORIGINS=https://playback-be-staging.vercel.app`. `AUTH_BYPASS` must not be set in staging. Seed: `SEED_GUARD=SAYASADAR npm run db:seed` (1-row phone) locally against Atlas.
+- Env (Production): `NODE_ENV=staging`, `MONGO_URI` (Atlas `.../childapp?...`), `AUTH_PROVIDER=dummy` (or `entra`), `ENTRA_*` only when `entra` (`REDIRECT_URI=https://playback-be-staging.vercel.app/auth/callback`), `SESSION_KEY` (`openssl rand -hex 32`), `SESSION_PASSWORD` (`openssl rand -base64 32`), `AZURE_STORAGE_*` + `AUDIO_SAS_*` + `APP_ORIGINS=https://playback-be-staging.vercel.app`. `AUTH_BYPASS` must not be set in staging. Seed: `SEED_GUARD=SAYA_SADAR_DROPDB_$(date +%H:%M) npm run db:seed` (e.g. `SAYA_SADAR_DROPDB_14:05`, 1-row phone) locally against Atlas.
 - Deploy on push to `main`; verify `curl -fsS https://playback-be-staging.vercel.app/health` and Entra login flow.
 
 ### Staging -- GCP (archival alternative)

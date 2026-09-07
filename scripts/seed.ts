@@ -3,9 +3,10 @@
  * Creates complete schema + indexes with 1 dummy conversation via phone (+62 Indonesia)
  * and 1 dummy user for login without Entra (AUTH_PROVIDER=dummy).
  *
- * Guarded: requires SEED_GUARD=SAYASADAR or --guard=SAYASADAR (destructive).
- * Usage: SEED_GUARD=SAYASADAR npm run db:seed
- *        SEED_GUARD=SAYASADAR npm run db:seed:dummy  (full dummy dataset 160 rows is seed-dummy.ts)
+ * Guarded: requires SEED_GUARD=SAYA_SADAR_DROPDB_{HH}:{MM} or --guard=SAYA_SADAR_DROPDB_{HH}:{MM} (destructive).
+ * Current time guard, e.g. at 14:05 use SAYA_SADAR_DROPDB_14:05.
+ * Usage: SEED_GUARD=SAYA_SADAR_DROPDB_$(date +%H:%M) npm run db:seed
+ *        SEED_GUARD=SAYA_SADAR_DROPDB_14:05 npm run db:seed:dummy  # full dummy dataset 160 rows is seed-dummy.ts
  */
 
 import { ObjectId } from 'mongodb';
@@ -25,13 +26,23 @@ const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '
 const SAMPLE_AUDIO_PATH = path.join(projectRoot, 'public', 'audio', 'sample-call.wav');
 const SAMPLE_AUDIO_CONTENT_TYPE = 'audio/wav';
 
+function getExpectedGuard(): string {
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2, '0');
+  const mm = String(now.getMinutes()).padStart(2, '0');
+  return `SAYA_SADAR_DROPDB_${hh}:${mm}`;
+}
+
 function assertGuard() {
   const guard =
     process.env.SEED_GUARD ||
     process.argv.find((a) => a.startsWith('--guard='))?.split('=')[1];
-  if (guard !== 'SAYASADAR') {
-    console.error('Refusing to seed: set SEED_GUARD=SAYASADAR or --guard=SAYASADAR');
-    console.error('Example: SEED_GUARD=SAYASADAR npm run db:seed');
+  const expected = getExpectedGuard();
+  if (guard !== expected) {
+    console.error(`Refusing to seed: invalid guard "${guard ?? ''}"`);
+    console.error(`Expected guard is "${expected}" (SAYA_SADAR_DROPDB_{HH}:{MM} for current time)`);
+    console.error(`Example: SEED_GUARD=${expected} npm run db:seed`);
+    console.error(`      or: npm run db:seed -- --guard=${expected}`);
     process.exit(1);
   }
 }

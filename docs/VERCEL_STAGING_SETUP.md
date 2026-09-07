@@ -23,7 +23,7 @@ Vercel Hobby limits (2026): 100 GB bandwidth/month, 100 GB-hours serverless exec
 
 ## 1. MongoDB Atlas -- M0 Free Cluster
 
-Atlas M0 is free forever; no credit card required. Canonical seed is **1 dummy conversation via phone +62** (`Agent Dummy`, `Customer Dummy +628123456789`, `user/123456`); 512 MB is more than enough. Full dummy dataset (160 conversations) remains as `SEED_GUARD=SAYASADAR npm run db:seed:dummy`.
+Atlas M0 is free forever; no credit card required. Canonical seed is **1 dummy conversation via phone +62** (`Agent Dummy`, `Customer Dummy +628123456789`, `user/123456`); 512 MB is more than enough. Full dummy dataset (160 conversations) remains as `SEED_GUARD=SAYA_SADAR_DROPDB_$(date +%H:%M) npm run db:seed:dummy` (e.g. `SAYA_SADAR_DROPDB_14:05`).
 
 1. Create Atlas account at https://cloud.mongodb.com -- Sign up (Google/GitHub).
 2. Create project: `playback-staging` -- Project > New Project.
@@ -34,12 +34,12 @@ Atlas M0 is free forever; no credit card required. Canonical seed is **1 dummy c
 7. Test locally (optional):
 
 ```bash
-SEED_GUARD=SAYASADAR MONGO_URI='mongodb+srv://...' npm run db:seed
-SEED_GUARD=SAYASADAR MONGO_URI='mongodb+srv://...' npm run db:seed:dummy  # full dummy dataset 160
+SEED_GUARD=SAYA_SADAR_DROPDB_$(date +%H:%M) MONGO_URI='mongodb+srv://...' npm run db:seed
+SEED_GUARD=SAYA_SADAR_DROPDB_$(date +%H:%M) MONGO_URI='mongodb+srv://...' npm run db:seed:dummy  # full dummy dataset 160
 mongosh 'mongodb+srv://...' --eval 'db.conversations.countDocuments()'
 ```
 
-All seeds are guarded: `SEED_GUARD=SAYASADAR` (or `--guard=SAYASADAR`). Keep this URI secret; it will go into Vercel env `MONGO_URI`.
+All seeds are guarded: `SEED_GUARD=SAYA_SADAR_DROPDB_{HH}:{MM}` e.g. `SAYA_SADAR_DROPDB_14:05` (or `--guard=SAYA_SADAR_DROPDB_14:05`; invalid shows correct). Keep this URI secret; it will go into Vercel env `MONGO_URI`.
 
 ## 2. Azure Blob Storage -- Private Container + CORS
 
@@ -100,7 +100,7 @@ Notes:
 
 ## 3. Auth -- Entra ID (SSO) or Dummy (`user/123456`)
 
-For free staging without Azure AD, use **dummy** auth: `AUTH_PROVIDER=dummy`, login `POST /auth/login {username:"user", password:"123456"}` (seeded by `SEED_GUARD=SAYASADAR npm run db:seed`). No Entra app needed. For SSO staging, use Entra below.
+For free staging without Azure AD, use **dummy** auth: `AUTH_PROVIDER=dummy`, login `POST /auth/login {username:"user", password:"123456"}` (seeded by `SEED_GUARD=SAYA_SADAR_DROPDB_$(date +%H:%M) npm run db:seed`, e.g. `SAYA_SADAR_DROPDB_14:05`). No Entra app needed. For SSO staging, use Entra below.
 
 ### 3a. Dummy (no Entra -- recommended for free Vercel)
 
@@ -226,7 +226,7 @@ vercel --prod
 
 ## 6. Seed Staging Data
 
-Atlas is empty on first deploy. Seed from local machine using the Atlas URI (container must already exist). All seeds require `SEED_GUARD=SAYASADAR`:
+Atlas is empty on first deploy. Seed from local machine using the Atlas URI (container must already exist). All seeds require `SEED_GUARD=SAYA_SADAR_DROPDB_{HH}:{MM}` (e.g. `SAYA_SADAR_DROPDB_14:05`, invalid prints correct):
 
 ```bash
 # Use the same URI as Vercel
@@ -236,8 +236,8 @@ export AZURE_STORAGE_ACCOUNT_NAME=playbackstgxxxxx
 export AZURE_STORAGE_CONTAINER=audio
 export NODE_ENV=staging  # so seed uses staging config path
 
-SEED_GUARD=SAYASADAR npm run db:seed          # 1 dummy via phone +62: Agent Dummy + Customer Dummy +628123456789 + user/123456 (+ indexes)
-SEED_GUARD=SAYASADAR npm run db:seed:dummy    # full dummy dataset 160 conversations + uploads sample wav to Blob as <id>.wav (alternate)
+SEED_GUARD=SAYA_SADAR_DROPDB_$(date +%H:%M) npm run db:seed          # 1 dummy via phone +62: Agent Dummy + Customer Dummy +628123456789 + user/123456 (+ indexes)
+SEED_GUARD=SAYA_SADAR_DROPDB_$(date +%H:%M) npm run db:seed:dummy    # full dummy dataset 160 conversations + uploads sample wav to Blob as <id>.wav (alternate)
 ```
 
 Alternatively run via Vercel: `vercel env pull .env.staging.local` to get remote env, then seed. Do not run seed from Vercel function itself (no shell there).

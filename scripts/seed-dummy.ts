@@ -3,7 +3,8 @@
  * Uses mulberry32 PRNG for deterministic data (same seed = same data every run).
  * Matches the shape of the existing frontend mock in src/data/conversations.js.
  *
- * Usage: SEED_GUARD=SAYASADAR npm run db:seed:dummy
+ * Usage: SEED_GUARD=SAYA_SADAR_DROPDB_{HH}:{MM} npm run db:seed:dummy
+ * e.g. SEED_GUARD=SAYA_SADAR_DROPDB_14:05 npm run db:seed:dummy
  * (canonical minimal seed is scripts/seed.ts -- 1 dummy via phone +62)
  */
 
@@ -129,11 +130,21 @@ const CUSTOMER_PHRASES = [
   'Yes, that\'s all I needed. Thanks for your help!',
 ];
 
+function getExpectedGuard(): string {
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2, '0');
+  const mm = String(now.getMinutes()).padStart(2, '0');
+  return `SAYA_SADAR_DROPDB_${hh}:${mm}`;
+}
+
 function assertGuard() {
   const guard = process.env.SEED_GUARD || process.argv.find((a) => a.startsWith('--guard='))?.split('=')[1];
-  if (guard !== 'SAYASADAR') {
-    console.error('Refusing to seed: set SEED_GUARD=SAYASADAR or --guard=SAYASADAR');
-    console.error('Example: SEED_GUARD=SAYASADAR npm run db:seed:dummy');
+  const expected = getExpectedGuard();
+  if (guard !== expected) {
+    console.error(`Refusing to seed: invalid guard "${guard ?? ''}"`);
+    console.error(`Expected guard is "${expected}" (SAYA_SADAR_DROPDB_{HH}:{MM} for current time)`);
+    console.error(`Example: SEED_GUARD=${expected} npm run db:seed:dummy`);
+    console.error(`      or: npm run db:seed:dummy -- --guard=${expected}`);
     process.exit(1);
   }
 }
