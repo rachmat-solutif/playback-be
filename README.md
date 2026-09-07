@@ -211,11 +211,31 @@ Docs: `docs/DB_SCHEMA.md` and `docs/DB_BACKUP.md`.
 
 ## Testing
 
+`npm run test:server` is **isolated** from dev data (uses `childapp_test`), runs with `disableAuth:true`, and does **not** require `db:seed`. Order with `dev` is independent after this setup.
+
 ```bash
+# 1. Prepare MongoDB (same as dev)
+sudo docker compose -f docker-compose.dev.yml up -d
+
+# 2. Configure env for test -- creates isolated DB childapp_test
+#    src/server/config.ts loads .env.test when NODE_ENV=test (vitest.server.config.ts)
+cp .env.test.example .env.test
+# Minimal .env.test:
+#   NODE_ENV=test
+#   MONGO_URI=mongodb://localhost:27017/childapp_test
+# No AUTH_PROVIDER/SESSION/ENTRA/AZURE needed -- tests use buildApp({disableAuth:true})
+# .env.test is gitignored; .env.test.example is committed.
+
+# 3. Run tests (requires MongoDB from step 1)
 npm run test:server
+# one-off without file: MONGO_URI=mongodb://localhost:27017/childapp_test npm run test:server
+
+# 4. No re-seed needed for dev after tests
+#    Tests use childapp_test (setupTestDb drop + teardown dropDatabase) so
+#    SEED_GUARD=SAYA_SADAR_DROPDB_$(date +%H:%M) npm run db:seed (1-row +62) remains in childapp.
 ```
 
-65 tests: conversations list/detail, analytics, audio delivery (local + SAS + Range), rate limiting (100 req/min), auth guards, storage and transaction IDs. Requires local MongoDB.
+65 tests: conversations list/detail, analytics, audio delivery (local + SAS + Range), rate limiting (100 req/min), auth guards, storage and transaction IDs. Requires local MongoDB (`MONGO_URI` is required; `SAYA_SADAR_DROPDB_` guard not needed).
 
 ## Serving with the Frontend Separately
 
