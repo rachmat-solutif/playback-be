@@ -4,6 +4,7 @@ import fastifyRateLimit from '@fastify/rate-limit';
 import path from 'node:path';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod';
 import { config } from './config.js';
 import { connectDb, disconnectDb } from './db/connection.js';
 import { createLogger } from './plugins/logger.js';
@@ -15,9 +16,7 @@ import { importRoutes } from './routes/import.js';
 import { agentRoutes } from './routes/agents.js';
 import { registerSession } from './auth/session.js';
 import { registerAuthGuard } from './auth/guard.js';
-import { entraAuthRoutes } from './auth/entra.js';
-import { bypassAuthRoutes } from './auth/bypass.js';
-import { dummyAuthRoutes } from './auth/dummy.js';
+import { authRoutes } from './auth/index.js';
 import { docsPlugin } from './plugins/docs.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -53,6 +52,9 @@ export async function buildApp(options: { disableAuth?: boolean } = {}) {
     logger: false,
     bodyLimit: 500 * 1024 * 1024,
   }) as unknown as FastifyInstance;
+
+  app.setValidatorCompiler(validatorCompiler);
+  app.setSerializerCompiler(serializerCompiler);
 
   // Suppress TypeScript type errors from plugin registrations
   // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
@@ -113,13 +115,10 @@ export async function buildApp(options: { disableAuth?: boolean } = {}) {
   await registerAuthGuard(app, { disabled: options.disableAuth });
 
   // --- Auth routes (login, callback, logout, me) ---
-  if (config.AUTH_PROVIDER === 'entra') {
-    await app.register(entraAuthRoutes);
-  } else if (config.AUTH_PROVIDER === 'dummy') {
-    await app.register(dummyAuthRoutes);
-  } else if (config.AUTH_BYPASS) {
-    await app.register(bypassAuthRoutes);
-  }
+  // Unified provider-aware routes so /docs always shows both Dummy and Entra flows
+  // regardless of current AUTH_PROVIDER (see src/server/auth/index.ts:1).
+  // Legacy per-provider files (entra.ts, dummy.ts, bypass.ts) kept for reference but not registered.
+  await app.register(authRoutes);
 
   // --- API routes ---
   await app.register(conversationRoutes, { prefix: '/api' });
@@ -129,7 +128,16 @@ export async function buildApp(options: { disableAuth?: boolean } = {}) {
   await app.register(agentRoutes, { prefix: '/api' });
 
   // --- Health check ---
-  app.get('/health', async () => ({ status: 'ok', timestamp: new Date().toISOString() }));
+  app.get(
+    '/health',
+    {
+      schema: {
+        tags: ['Health'],
+        summary: 'Health check',
+      },
+    },
+    async () => ({ status: 'ok', timestamp: new Date().toISOString() }),
+  );
 
   // --- Optional: serve frontend dist if present (monolith compat) ---
   // When BE runs standalone (separate FE repo), there is no dist folder --

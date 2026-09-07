@@ -1,4 +1,5 @@
 import { FastifyInstance } from 'fastify';
+import { z } from 'zod';
 import { connectDb } from '../db/connection.js';
 
 export async function agentRoutes(app: FastifyInstance) {
@@ -6,7 +7,15 @@ export async function agentRoutes(app: FastifyInstance) {
    * GET /api/agents
    * Return all agents (id + name), sorted alphabetically.
    */
-  app.get('/agents', async () => {
+  app.get(
+    '/agents',
+    {
+      schema: {
+        tags: ['Agents'],
+        summary: 'List agents',
+      },
+    },
+    async () => {
     const db = await connectDb();
     const agents = await db
       .collection('agents')

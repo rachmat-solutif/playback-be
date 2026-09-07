@@ -1,5 +1,6 @@
 import Fastify, { type FastifyInstance } from 'fastify';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { serializerCompiler, validatorCompiler } from 'fastify-type-provider-zod';
 import { config, setConfig, resetConfig } from '../config.js';
 import { entraAuthRoutes } from '../auth/entra.js';
 import { registerAuthGuard } from '../auth/guard.js';
@@ -25,6 +26,8 @@ async function createAuthTestApp(): Promise<FastifyInstance> {
   setAuthConfig();
 
   const testApp = Fastify();
+  testApp.setValidatorCompiler(validatorCompiler);
+  testApp.setSerializerCompiler(serializerCompiler);
   await registerSession(testApp);
   await registerAuthGuard(testApp);
   await testApp.register(entraAuthRoutes);

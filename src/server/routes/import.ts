@@ -1,6 +1,7 @@
 import { FastifyInstance, FastifyReply } from 'fastify';
 import pino from 'pino';
 import { ObjectId } from 'mongodb';
+import { z } from 'zod';
 import { connectDb } from '../db/connection.js';
 import { importSingleSchema, importBulkSchema, ImportSingleInput } from './import-schemas.js';
 import { createJob, getJob, updateJob, ImportJobError } from './import-jobs.js';
@@ -372,7 +373,17 @@ export async function importRoutes(app: FastifyInstance) {
    * POST /api/import
    * Import a single conversation.
    */
-  app.post('/import', async (request, reply) => {
+  app.post(
+    '/import',
+    {
+      schema: {
+        tags: ['Import'],
+        summary: 'Import single conversation',
+        description: 'JSON or multipart with file. Requires Bearer IMPORT_API_KEY or session. Audio required when channel=call. Body: conversation, transcript, metrics, audio (url|blob_name|remote_url). See importSingleSchema.',
+        consumes: ['application/json', 'multipart/form-data'],
+      },
+    },
+    async (request, reply) => {
     request.log.debug(
       {
         data: { method: 'POST', path: '/api/import' },
@@ -542,7 +553,16 @@ export async function importRoutes(app: FastifyInstance) {
    * Import multiple conversations (JSON only, no file attachments).
    * Returns immediately with a job ID, processes in background.
    */
-  app.post('/import/bulk', async (request, reply) => {
+  app.post(
+    '/import/bulk',
+    {
+      schema: {
+        tags: ['Import'],
+        summary: 'Bulk import',
+        body: importBulkSchema,
+      },
+    },
+    async (request, reply) => {
     const parsed = importBulkSchema.safeParse(request.body);
     if (!parsed.success) {
       request.log.warn(
@@ -587,7 +607,16 @@ export async function importRoutes(app: FastifyInstance) {
    * GET /api/import/jobs/:jobId
    * Poll import job status and progress.
    */
-  app.get('/import/jobs/:jobId', async (request, reply) => {
+  app.get(
+    '/import/jobs/:jobId',
+    {
+      schema: {
+        tags: ['Import'],
+        summary: 'Poll bulk job',
+        params: z.object({ jobId: z.string().min(1).describe('Bulk job ID (24-char hex)') }),
+      },
+    },
+    async (request, reply) => {
     const { jobId } = request.params as { jobId: string };
     const job = getJob(jobId);
 

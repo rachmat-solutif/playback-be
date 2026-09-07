@@ -1,5 +1,6 @@
 import { FastifyInstance } from 'fastify';
 import { ObjectId } from 'mongodb';
+import { z } from 'zod';
 import { connectDb } from '../db/connection.js';
 import { isBlobStorageConfigured, generateSasUrl } from '../storage/blob.js';
 import { getSession } from '../auth/session.js';
@@ -86,7 +87,16 @@ export async function audioRoutes(app: FastifyInstance) {
    * fetches the audio directly from the private Blob container.
    * Local development streams files from public/audio/ and supports Range.
    */
-  app.get('/audio/:conversationId', async (request, reply) => {
+  app.get(
+    '/audio/:conversationId',
+    {
+      schema: {
+        tags: ['Audio'],
+        summary: 'Get audio URL or stream',
+        params: z.object({ conversationId: z.string().min(1).describe('Conversation ObjectId') }),
+      },
+    },
+    async (request, reply) => {
     const { conversationId } = request.params as { conversationId: string };
 
     let objectId: ObjectId;

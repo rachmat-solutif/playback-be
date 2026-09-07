@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { ConfidentialClientApplication, CryptoProvider } from '@azure/msal-node';
+import { z } from 'zod';
 import { config } from '../config.js';
 import { setSession, getSession } from './session.js';
 
@@ -26,7 +27,16 @@ function getMsalClient(): ConfidentialClientApplication {
 
 export async function entraAuthRoutes(app: FastifyInstance): Promise<void> {
   // GET /auth/login -- redirect to Microsoft login
-  app.get('/auth/login', async (request, reply) => {
+  app.get(
+    '/auth/login',
+    {
+      schema: {
+        tags: ['Auth'],
+        summary: 'Entra login redirect',
+        description: 'Redirects to Microsoft Entra ID (`login.microsoftonline.com`) with PKCE `code_challenge` + `state`. Sets `pkceVerifier`/`authState` in session for callback validation.',
+      },
+    },
+    async (request, reply) => {
     const client = getMsalClient();
 
     // Generate PKCE codes and state for CSRF protection
@@ -49,8 +59,23 @@ export async function entraAuthRoutes(app: FastifyInstance): Promise<void> {
   });
 
   // GET /auth/callback -- exchange code for token, create session
-  app.get('/auth/callback', async (request, reply) => {
-    const { code, state } = request.query as { code?: string; state?: string };
+  app.get(
+    '/auth/callback',
+    {
+      schema: {
+        tags: ['Auth'],
+        summary: 'Entra callback',
+        description: 'Exchanges `code` for token via MSAL `acquireTokenByCode`, validates `state` vs session, creates `session` cookie and redirects to `/`.',
+        querystring: z.object({
+          code: z.string().min(1).describe('Authorization code from Entra ID'),
+          state: z.string().min(1).describe('State returned by Entra ID, must match session `authState`'),
+          session_state: z.string().optional().describe('Entra session_state'),
+          client_info: z.string().optional().describe('Entra client_info'),
+        }),
+      },
+    },
+    async (request, reply) => {
+      const { code, state } = request.query as { code?: string; state?: string };
 
     if (!code) {
       return reply.status(400).send({ error: 'Missing authorization code' });
@@ -107,7 +132,16 @@ export async function entraAuthRoutes(app: FastifyInstance): Promise<void> {
   });
 
   // GET /auth/logout -- destroy local session, redirect to Microsoft logout
-  app.get('/auth/logout', async (request, reply) => {
+  app.get(
+    '/auth/logout',
+    {
+      schema: {
+        tags: ['Auth'],
+        summary: 'Entra logout',
+        description: 'Deletes local `session` and redirects to Microsoft Entra logout (`.../oauth2/v2.0/logout?post_logout_redirect_uri=...`).',
+      },
+    },
+    async (request, reply) => {
     // Destroy local session
     request.session.delete();
 
@@ -126,7 +160,16 @@ export async function entraAuthRoutes(app: FastifyInstance): Promise<void> {
 
   // GET /auth/logout/callback -- front-channel logout (Microsoft calls this in an iframe
   // when another sister site triggers logout)
-  app.get('/auth/logout/callback', async (request, reply) => {
+  app.get(
+    '/auth/logout/callback',
+    {
+      schema: {
+        tags: ['Auth'],
+        summary: 'Entra logout callback (front-channel)',
+        description: 'Microsoft calls this in an iframe on sister-site logout. Deletes local `session` and redirects to `/`.',
+      },
+    },
+    async (request, reply) => {
     // Destroy local session if it exists
     request.session.delete();
 
@@ -138,7 +181,16 @@ export async function entraAuthRoutes(app: FastifyInstance): Promise<void> {
   });
 
   // GET /auth/me -- return current user info from session
-  app.get('/auth/me', async (request, reply) => {
+  app.get(
+    '/auth/me',
+    {
+      schema: {
+        tags: ['Auth'],
+        summary: 'Current user (Entra)',
+        description: 'Returns session user if authenticated via Entra callback, else 401. Requires `session` cookie.',
+      },
+    },
+    async (request, reply) => {
     const session = getSession(request.session);
     if (!session) {
       return reply.status(401).send({ error: 'Unauthorized' });

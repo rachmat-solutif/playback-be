@@ -1,12 +1,44 @@
 import { FastifyInstance } from 'fastify';
+import { z } from 'zod';
 import { connectDb } from '../db/connection.js';
+
+const volumeQuerySchema = z.object({
+  from: z.string().optional().describe('Start date ISO 8601'),
+  to: z.string().optional().describe('End date ISO 8601'),
+  granularity: z.enum(['day', 'hour']).optional().default('day').describe('Bucket granularity'),
+});
+
+const kpisQuerySchema = z.object({
+  from: z.string().optional().describe('Start date ISO 8601'),
+  to: z.string().optional().describe('End date ISO 8601'),
+});
+
+const sentimentQuerySchema = z.object({
+  from: z.string().optional().describe('Start date ISO 8601'),
+  to: z.string().optional().describe('End date ISO 8601'),
+});
+
+const topAgentsQuerySchema = z.object({
+  from: z.string().optional().describe('Start date ISO 8601'),
+  to: z.string().optional().describe('End date ISO 8601'),
+  limit: z.coerce.number().int().min(1).max(20).optional().default(5).describe('Max agents (1-20)'),
+});
 
 export async function analyticsRoutes(app: FastifyInstance) {
   /**
    * GET /api/analytics/volume
    * Contact volume by day or hour, with per-channel breakdown.
    */
-  app.get('/analytics/volume', async (request) => {
+  app.get(
+    '/analytics/volume',
+    {
+      schema: {
+        tags: ['Analytics'],
+        summary: 'Contact volume',
+        querystring: volumeQuerySchema,
+      },
+    },
+    async (request) => {
     const { from, to, granularity = 'day' } = request.query as Record<string, string>;
 
     const db = await connectDb();
@@ -102,7 +134,16 @@ export async function analyticsRoutes(app: FastifyInstance) {
    * GET /api/analytics/kpis
    * Dashboard KPI cards with period-over-period delta.
    */
-  app.get('/analytics/kpis', async (request) => {
+  app.get(
+    '/analytics/kpis',
+    {
+      schema: {
+        tags: ['Analytics'],
+        summary: 'KPI cards',
+        querystring: kpisQuerySchema,
+      },
+    },
+    async (request) => {
     const { from, to } = request.query as Record<string, string>;
 
     const db = await connectDb();
@@ -182,7 +223,16 @@ export async function analyticsRoutes(app: FastifyInstance) {
    * GET /api/analytics/sentiment
    * Sentiment distribution (positive, neutral, negative counts).
    */
-  app.get('/analytics/sentiment', async (request) => {
+  app.get(
+    '/analytics/sentiment',
+    {
+      schema: {
+        tags: ['Analytics'],
+        summary: 'Sentiment distribution',
+        querystring: sentimentQuerySchema,
+      },
+    },
+    async (request) => {
     const { from, to } = request.query as Record<string, string>;
 
     const db = await connectDb();
@@ -226,7 +276,16 @@ export async function analyticsRoutes(app: FastifyInstance) {
    * GET /api/analytics/top-agents
    * Top agents by conversation volume.
    */
-  app.get('/analytics/top-agents', async (request) => {
+  app.get(
+    '/analytics/top-agents',
+    {
+      schema: {
+        tags: ['Analytics'],
+        summary: 'Top agents',
+        querystring: topAgentsQuerySchema,
+      },
+    },
+    async (request) => {
     const { from, to, limit = '5' } = request.query as Record<string, string>;
 
     const db = await connectDb();

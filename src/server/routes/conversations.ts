@@ -1,14 +1,42 @@
 import { FastifyInstance } from 'fastify';
 import { ObjectId, Filter } from 'mongodb';
+import { z } from 'zod';
 import { connectDb } from '../db/connection.js';
 import { ConversationDoc } from '../db/collections.js';
+
+const listQuerySchema = z.object({
+  from: z.string().optional().describe('Start date ISO 8601, e.g. 2024-01-01'),
+  to: z.string().optional().describe('End date ISO 8601, inclusive'),
+  agent: z.string().optional().describe('Agent ObjectId or name'),
+  channel: z.enum(['call', 'chat', 'email']).optional().describe('Channel'),
+  sentiment: z.enum(['positive', 'neutral', 'negative']).optional().describe('Sentiment label'),
+  tag: z.string().optional().describe('Tag ObjectId or label'),
+  keyword: z.string().optional().describe('Keyword search in transcript, agent, customer, or ID'),
+  minDuration: z.coerce.number().int().min(0).optional().describe('Minimum duration in seconds'),
+  page: z.coerce.number().int().min(1).optional().default(1).describe('Page number (1-indexed)'),
+  limit: z.coerce.number().int().min(1).max(100).optional().default(20).describe('Page size (max 100)'),
+});
+
+const detailParamsSchema = z.object({
+  id: z.string().min(1).describe('Conversation ObjectId'),
+});
 
 export async function conversationRoutes(app: FastifyInstance) {
   /**
    * GET /api/conversations
    * List conversations with filters. All filters combine with AND logic.
    */
-  app.get('/conversations', async (request, reply) => {
+  app.get(
+    '/conversations',
+    {
+      schema: {
+        tags: ['Conversations'],
+        summary: 'List conversations',
+        description: 'List conversations with AND filters, pagination, and enrichment.',
+        querystring: listQuerySchema,
+      },
+    },
+    async (request, reply) => {
     const {
       from,
       to,
@@ -221,7 +249,16 @@ export async function conversationRoutes(app: FastifyInstance) {
    * GET /api/conversations/:id
    * Full conversation detail with populated relations.
    */
-  app.get('/conversations/:id', async (request, reply) => {
+  app.get(
+    '/conversations/:id',
+    {
+      schema: {
+        tags: ['Conversations'],
+        summary: 'Get conversation detail',
+        params: detailParamsSchema,
+      },
+    },
+    async (request, reply) => {
     const { id } = request.params as { id: string };
 
     let objectId: ObjectId;
