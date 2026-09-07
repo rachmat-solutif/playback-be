@@ -228,7 +228,26 @@ No CORS plugin is pre-configured; add `@fastify/cors` if FE and BE are on differ
 
 ## Deployment
 
-Current staging: GCP e2-micro via Pulumi (`infra-gcloud/`), Caddy reverse proxy, systemd unit, Atlas M0 + Azure Blob Storage.
+### Staging -- Vercel (free, recommended)
+
+Free Hobby staging at `https://playback-be-staging.vercel.app` with Atlas M0 + Entra ID + Azure Blob (SAS). Vercel serverless adapter `api/index.ts` reuses the Fastify app per cold start.
+
+```
+Browser -- HTTPS --> Vercel Serverless (api/index.ts -> Fastify) -- Atlas M0 / Azure Blob (SAS)
+                          +-- Entra ID (PKCE) --> session cookie
+```
+
+Full installation guide: `docs/VERCEL_STAGING_SETUP.md` (Atlas free cluster, Blob container + CORS, Entra app registration for `https://playback-be-staging.vercel.app/auth/callback`, Vercel project + env vars, seed, verification). Env template: `.env.staging.example`. Config: `vercel.json` + `api/index.ts`.
+
+Quick connect:
+
+- Vercel: Import `rachmat-solutif/playback-be` (branch `main`), Framework `Other`, Build `npm run build`, Node `22.x`, Domain `playback-be-staging.vercel.app`.
+- Env (Production): `NODE_ENV=staging`, `MONGO_URI` (Atlas `.../childapp?...`), `AUTH_PROVIDER=entra`, `ENTRA_*` (`REDIRECT_URI=https://playback-be-staging.vercel.app/auth/callback`), `SESSION_KEY` (`openssl rand -hex 32`), `SESSION_PASSWORD` (`openssl rand -base64 32`), `AZURE_STORAGE_*` + `AUDIO_SAS_*` + `APP_ORIGINS=https://playback-be-staging.vercel.app`. `AUTH_BYPASS` must not be set in staging.
+- Deploy on push to `main`; verify `curl -fsS https://playback-be-staging.vercel.app/health` and Entra login flow.
+
+### Staging -- GCP (archival alternative)
+
+GCP e2-micro via Pulumi (`infra-gcloud/`), Caddy reverse proxy, systemd unit, Atlas M0 + Azure Blob Storage (kept for reference; Vercel is the current free staging).
 
 ```
 Client -> Caddy (443) -> Node.js (3000) -> Atlas M0 / Azure Blob
@@ -249,16 +268,17 @@ sudo systemctl status playback
 journalctl -u playback -f
 ```
 
-See `infra-gcloud/README.md` and `docs/DEVOPS-AZURE-AUDIO.md` for full runbook (Entra registration, secrets, SAS migration, monitoring).
+See `infra-gcloud/README.md` and `docs/DEVOPS-AZURE-AUDIO.md` for full runbook (Entra registration, secrets, SAS migration, monitoring). For Vercel, see `docs/VERCEL_STAGING_SETUP.md`.
 
 ## Docs
 
 | Doc | Contents |
 |-----|----------|
+| `docs/VERCEL_STAGING_SETUP.md` | **Vercel free staging (Atlas + Entra + Blob) -- start here** |
 | `docs/HIGH-LEVEL-DESIGN.md` | System architecture and data flow |
 | `docs/DB_SCHEMA.md` | Collection shapes and indexes |
 | `docs/DB_BACKUP.md` | Snapshot export/import procedures |
-| `docs/DEVOPS-AZURE-AUDIO.md` | Azure Storage + Entra + deployment runbook |
+| `docs/DEVOPS-AZURE-AUDIO.md` | Azure Storage + Entra + deployment runbook (GCP + Vercel) |
 | `docs/LOCAL-AZURE-AUDIO-CHECKLIST.md` | Local Azure audio setup |
 | `docs/IMPORT_API_EXAMPLES.md` | Import API curl examples |
 | `docs/LOGGING.md` | Pino logging, redaction, transactionId |
