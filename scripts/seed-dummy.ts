@@ -1,9 +1,10 @@
 /**
- * Seed script for Playback database.
+ * Seed script for Playback database -- full dummy dataset (160 conversations).
  * Uses mulberry32 PRNG for deterministic data (same seed = same data every run).
  * Matches the shape of the existing frontend mock in src/data/conversations.js.
  *
- * Usage: npm run db:seed
+ * Usage: SEED_GUARD=SAYASADAR npm run db:seed:dummy
+ * (canonical minimal seed is scripts/seed.ts -- 1 dummy via phone +62)
  */
 
 import { ObjectId } from 'mongodb';
@@ -141,7 +142,7 @@ function assertGuard() {
 
 async function seed() {
   assertGuard();
-  console.log('Seeding database (legacy 160)...');
+  console.log('Seeding database (160 dummies)...');
 
   const azureAudioEnabled = isBlobStorageConfigured();
   let sampleAudioSize = 0;

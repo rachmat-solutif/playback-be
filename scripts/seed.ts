@@ -5,7 +5,7 @@
  *
  * Guarded: requires SEED_GUARD=SAYASADAR or --guard=SAYASADAR (destructive).
  * Usage: SEED_GUARD=SAYASADAR npm run db:seed
- *        SEED_GUARD=SAYASADAR npm run db:seed:dummy  (legacy 160 rows is seed-dummy.ts)
+ *        SEED_GUARD=SAYASADAR npm run db:seed:dummy  (full dummy dataset 160 rows is seed-dummy.ts)
  */
 
 import { ObjectId } from 'mongodb';

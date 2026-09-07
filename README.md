@@ -89,7 +89,7 @@ cp .env.development.example .env.development
 #    Requires MongoDB from step 1 (or remote URI). Guard password: SAYASADAR.
 #    With Azure Blob configured, seed uploads public/audio/sample-call.wav as
 #    <conversation_id>.wav to the private container; without it, seed keeps
-#    local file reference. Legacy 160-row seed is available as `npm run db:seed:dummy`.
+#    local file reference. Full dummy dataset (160 conversations) is available as `npm run db:seed:dummy`.
 SEED_GUARD=SAYASADAR npm run db:seed
 # Dummy login (AUTH_PROVIDER=dummy): POST /auth/login {username:"user", password:"123456"}
 
@@ -157,7 +157,7 @@ Copy `.env.development.example` to `.env.development` (also `.env.staging`, `.en
 | `npm run prod` | Run compiled build |
 | `npm test` / `npm run test:server` | Vitest suite |
 | `npm run db:seed` | Drop + reseed 1 dummy via phone +62 (Agent Dummy, Customer Dummy `+628123456789`, `user/123456`) + indexes -- requires `SEED_GUARD=SAYASADAR` |
-| `npm run db:seed:dummy` | Legacy 160 conversations (archived) -- requires `SEED_GUARD=SAYASADAR` |
+| `npm run db:seed:dummy` | Full dummy dataset: 160 conversations (alternative) -- requires `SEED_GUARD=SAYASADAR` |
 | `npm run db:export` | Snapshot schema + indexes + data (Extended JSON) |
 | `npm run db:import` | Validate/import snapshot (replace mode is destructive) |
 | `npm run db:indexes` | Recreate indexes only |
@@ -205,7 +205,7 @@ Collections seeded by `scripts/seed.ts` (new 1-row dummy, guarded `SEED_GUARD=SA
 | `audio_files` | 1 | Metadata + blob key or local `sample-call.wav` |
 | `conversation_metrics` | 1 | Sentiment + handle time |
 
-Legacy 160-row seed is available as `SEED_GUARD=SAYASADAR npm run db:seed:dummy` (`scripts/seed-dummy.ts`: 6 agents / 100 customers / 7 tags / 160 conversations / ~1588 segments).
+Full dummy dataset (160 conversations) is available as `SEED_GUARD=SAYASADAR npm run db:seed:dummy` (`scripts/seed-dummy.ts`: 6 agents / 100 customers / 7 tags / 160 conversations / ~1588 segments).
 
 Docs: `docs/DB_SCHEMA.md` and `docs/DB_BACKUP.md`.
 

@@ -23,7 +23,7 @@ Vercel Hobby limits (2026): 100 GB bandwidth/month, 100 GB-hours serverless exec
 
 ## 1. MongoDB Atlas -- M0 Free Cluster
 
-Atlas M0 is free forever; no credit card required. Canonical seed is **1 dummy conversation via phone +62** (`Agent Dummy`, `Customer Dummy +628123456789`, `user/123456`); 512 MB is more than enough. Legacy 160-row seed remains as `SEED_GUARD=SAYASADAR npm run db:seed:dummy`.
+Atlas M0 is free forever; no credit card required. Canonical seed is **1 dummy conversation via phone +62** (`Agent Dummy`, `Customer Dummy +628123456789`, `user/123456`); 512 MB is more than enough. Full dummy dataset (160 conversations) remains as `SEED_GUARD=SAYASADAR npm run db:seed:dummy`.
 
 1. Create Atlas account at https://cloud.mongodb.com -- Sign up (Google/GitHub).
 2. Create project: `playback-staging` -- Project > New Project.
@@ -35,7 +35,7 @@ Atlas M0 is free forever; no credit card required. Canonical seed is **1 dummy c
 
 ```bash
 SEED_GUARD=SAYASADAR MONGO_URI='mongodb+srv://...' npm run db:seed
-SEED_GUARD=SAYASADAR MONGO_URI='mongodb+srv://...' npm run db:seed:dummy  # legacy 160
+SEED_GUARD=SAYASADAR MONGO_URI='mongodb+srv://...' npm run db:seed:dummy  # full dummy dataset 160
 mongosh 'mongodb+srv://...' --eval 'db.conversations.countDocuments()'
 ```
 
@@ -237,7 +237,7 @@ export AZURE_STORAGE_CONTAINER=audio
 export NODE_ENV=staging  # so seed uses staging config path
 
 SEED_GUARD=SAYASADAR npm run db:seed          # 1 dummy via phone +62: Agent Dummy + Customer Dummy +628123456789 + user/123456 (+ indexes)
-SEED_GUARD=SAYASADAR npm run db:seed:dummy    # legacy 160 conversations + uploads sample wav to Blob as <id>.wav (alternate)
+SEED_GUARD=SAYASADAR npm run db:seed:dummy    # full dummy dataset 160 conversations + uploads sample wav to Blob as <id>.wav (alternate)
 ```
 
 Alternatively run via Vercel: `vercel env pull .env.staging.local` to get remote env, then seed. Do not run seed from Vercel function itself (no shell there).
@@ -282,7 +282,7 @@ curl -X POST https://playback-be-staging.vercel.app/api/import \
 - [ ] Unauthenticated `GET /api/conversations` returns 401 or redirects (auth guard active).
 - [ ] `GET /auth/login` redirects to `login.microsoftonline.com` with `client_id` = `ENTRA_CLIENT_ID`.
 - [ ] After login, `GET /auth/me` returns user JSON (session cookie `httpOnly`, `secure`, `sameSite=lax`).
-- [ ] `GET /api/conversations` with session cookie returns paginated JSON (1 dummy seeded, `channel:call` `+628123456789`; legacy 160 if `db:seed:dummy` used).
+- [ ] `GET /api/conversations` with session cookie returns paginated JSON (1 dummy seeded, `channel:call` `+628123456789`; 160 if `db:seed:dummy` used).
 - [ ] `GET /api/audio/:id` returns `{url: "https://...blob.core.windows.net/audio/...?sv=...&sig=..."}` with `sp=r`, `spr=https`, expiry 60 min from issuance, `st` 5 min in past.
 - [ ] Browser playback fetches directly from Blob (DevTools Network shows `Range` requests, 206 on seek). No SAS in app logs.
 - [ ] Atlas Metrics shows connections from Vercel (Network Access 0.0.0.0/0, Connections < 500).
