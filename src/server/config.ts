@@ -44,8 +44,21 @@ export const envSchema = z
     ENTRA_REDIRECT_URI: z.string().url().optional(),
     ENTRA_LOGOUT_URI: z.string().url().optional(),
 
-    SESSION_KEY: z.string().optional(),
-    SESSION_PASSWORD: z.string().min(1).optional(),
+    // FE origin where browser lands after SSO when FE does not pass ?redirect.
+    // Deprecated for multi-client: prefer APP_ORIGINS allowlist + FE-passed ?redirect.
+    // Kept as fallback/default for single-FE envs.
+    // Dev: http://localhost:5173, Staging: https://playback-fe-staging.vercel.app, Prod: https://playback.rachmat.pro
+    FRONTEND_URL: z.string().url().optional(),
+
+    // Allowed FE/client origins for dynamic ?redirect after SSO (multi-client).
+    // Comma-separated list, e.g. http://localhost:5173,http://localhost:5174,https://playback-fe-staging.vercel.app,https://playback.rachmat.pro
+    // Used to validate FE-passed redirect origin, not just Swagger servers.
+    APP_ORIGINS: z.string().optional(),
+
+    // SECURITY: Generate UNIQUE per env (dev/staging/prod) via openssl rand -hex 32 / -base64 32.
+    // Reusing same value across envs lets leak in dev forge prod session cookie (AES-GCM, session.ts:34).
+    SESSION_KEY: z.string().optional(), // 32-byte hex (64 chars) -> Buffer.from(...,'hex')
+    SESSION_PASSWORD: z.string().min(1).optional(), // signing secret
 
     AZURE_STORAGE_CONNECTION_STRING: z.string().min(1).optional(),
     AZURE_STORAGE_ACCOUNT_NAME: z.string().min(1).optional(),
@@ -54,7 +67,6 @@ export const envSchema = z
     AUDIO_SAS_CLOCK_SKEW_MINUTES: z.coerce.number().int().min(1).max(15).default(5),
     REMOTE_AUDIO_TIMEOUT_SECONDS: z.coerce.number().int().min(5).max(600).default(300),
     REMOTE_AUDIO_MAX_REDIRECTS: z.coerce.number().int().min(0).max(5).default(3),
-    APP_ORIGINS: z.string().optional(),
 
     DOCS_BASIC_USER: z.string().min(1).default('user123'),
     DOCS_BASIC_PASS: z.string().min(1).default('user123'),
@@ -87,7 +99,8 @@ export const envSchema = z
     }
 
     if (value.AUTH_PROVIDER === 'entra' || value.AUTH_PROVIDER === 'dummy') {
-      // SESSION_KEY format is required for entra and dummy (secure-session)
+      // SESSION_KEY format is required for entra and dummy (secure-session AES key, session.ts:34)
+      // SECURITY: Use distinct SESSION_KEY/PASSWORD per env; same value across envs = cross-env forgery.
       if (value.SESSION_KEY && !/^[0-9a-fA-F]{64}$/.test(value.SESSION_KEY)) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,

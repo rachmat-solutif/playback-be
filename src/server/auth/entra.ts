@@ -119,7 +119,7 @@ export async function entraAuthRoutes(app: FastifyInstance): Promise<void> {
       request.session.set('pkceVerifier', '');
       request.session.set('authState', '');
 
-      return reply.redirect('/');
+      return reply.redirect(config.FRONTEND_URL || '/');
     } catch (err: any) {
       request.log.error(
         {
@@ -149,7 +149,7 @@ export async function entraAuthRoutes(app: FastifyInstance): Promise<void> {
     const postLogoutUri = config.ENTRA_LOGOUT_URI ||
       (config.ENTRA_REDIRECT_URI
         ? config.ENTRA_REDIRECT_URI.replace('/auth/callback', '/login')
-        : 'http://localhost:3000/login');
+        : `${config.FRONTEND_URL || 'http://localhost:3000'}/login`);
 
     const logoutUrl =
       `https://login.microsoftonline.com/${config.ENTRA_TENANT_ID}/oauth2/v2.0/logout` +
@@ -177,7 +177,7 @@ export async function entraAuthRoutes(app: FastifyInstance): Promise<void> {
     //return reply.status(200).send('OK');
 
 
-    return reply.redirect('/');
+    return reply.redirect(config.FRONTEND_URL || '/');
   });
 
   // GET /auth/me -- return current user info from session

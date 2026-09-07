@@ -21,6 +21,7 @@ declare module '@fastify/secure-session' {
     expiresAt: number;
     pkceVerifier: string;
     authState: string;
+    postLoginRedirect: string;
   }
 }
 
