@@ -1,0 +1,35 @@
+{
+  "conversation": {
+    "customer": {
+      "phone": 1555000100,
+      "name": "Jordan Reyes",
+      "email": "jordan.reyes@example.com"
+    },
+    "agent": {
+      "email": "maya.chen@company.com",
+      "name": "Maya Chen",
+      "team": "Support"
+    },
+    "channel": "call",
+    "started_at": "2026-07-20T09:00:00Z",
+    "ended_at": "2026-07-20T09:12:30Z",
+    "status": "resolved",
+    "tags": ["Billing"],
+    "external_id": "CRM-00001"
+  },
+  "transcript": [
+    { "speaker": "agent", "timestamp_seconds": 0, "text": "Thank you for calling, how can I help you today?" },
+    { "speaker": "customer", "timestamp_seconds": 4, "text": "Hi, I was charged twice for my subscription." },
+    { "speaker": "agent", "timestamp_seconds": 12, "text": "I understand your concern. Let me look into that for you." },
+    { "speaker": "agent", "timestamp_seconds": 45, "text": "I can see the duplicate charge. I've processed a refund." },
+    { "speaker": "customer", "timestamp_seconds": 52, "text": "Thank you, that resolves my issue." },
+    { "speaker": "agent", "timestamp_seconds": 58, "text": "Is there anything else I can help you with?" },
+    { "speaker": "customer", "timestamp_seconds": 62, "text": "No, that's all. Thanks for your help!" }
+  ],
+  "metrics": {
+    "sentiment_score": 0.7,
+    "sentiment_label": "positive",
+    "handle_time_seconds": 750,
+    "first_response_seconds": 12
+  }
+}

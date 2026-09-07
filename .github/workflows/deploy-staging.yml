@@ -1,0 +1,66 @@
+name: Deploy to Staging
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      mongo:
+        image: mongo:7
+        ports:
+          - 27017:27017
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run test:server
+        env:
+          MONGO_URI: mongodb://localhost:27017/childapp_test
+          NODE_ENV: test
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+      - run: npm run build
+
+      - uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Create deployment package
+        run: |
+          zip -qr deploy.zip . \
+            -x "node_modules/*" \
+            -x ".git/*" \
+            -x "infra/*" \
+            -x "examples/*" \
+            -x ".env*" \
+            -x "docker-compose*" \
+            -x "*.md"
+
+      - name: Deploy to App Service
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: childapp-staging
+          resource-group-name: childapp-rg
+          package: deploy.zip
+
+      - uses: azure/CLI@v2
+        with:
+          inlineScript: az logout

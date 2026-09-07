@@ -1,0 +1,50 @@
+{
+  "name": "playback-be",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Playback Backend -- Fastify API for conversations, analytics, audio, and import",
+  "scripts": {
+    "dev": "tsx watch src/server/app.ts",
+    "build": "tsc",
+    "prod": "node src/dist-server/app.js",
+    "start": "node --import tsx src/server/app.ts",
+    "db:seed": "tsx scripts/seed.ts && tsx scripts/migrate-indexes.ts",
+    "db:export": "tsx scripts/export-db.ts",
+    "db:import": "tsx scripts/import-db.ts",
+    "db:indexes": "tsx scripts/migrate-indexes.ts",
+    "db:clear": "tsx scripts/clear-db.ts",
+    "db:seed:staging": "node scripts/staging-db.js seed",
+    "db:clear:staging": "node scripts/staging-db.js clear",
+    "db:indexes:staging": "node scripts/staging-db.js indexes",
+    "gcloud:install": "node scripts/gcloud-infra-run.js npm install",
+    "gcloud:up": "node scripts/gcloud-infra-run.js pulumi up --stack staging",
+    "gcloud:preview": "node scripts/gcloud-infra-run.js pulumi preview --stack staging",
+    "gcloud:destroy": "node scripts/gcloud-infra-run.js pulumi destroy --stack staging",
+    "gcloud:deploy": "./infra-gcloud/deploy.sh",
+    "test": "vitest run --config vitest.server.config.ts",
+    "test:server": "vitest run --config vitest.server.config.ts"
+  },
+  "dependencies": {
+    "@azure/msal-node": "^5.4.2",
+    "@azure/storage-blob": "^12.26.0",
+    "@fastify/multipart": "^8.3.1",
+    "@fastify/rate-limit": "^9.1.0",
+    "@fastify/secure-session": "^7.5.1",
+    "@fastify/static": "^7.0.4",
+    "dotenv": "^16.6.1",
+    "fastify": "^4.29.1",
+    "mongodb": "^6.21.0",
+    "pino": "^9.14.0",
+    "tsx": "^4.23.1",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.43",
+    "typescript": "^5.9.3",
+    "vitest": "^2.1.9"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  }
+}

@@ -1,0 +1,27 @@
+config:
+  gcp:project: project-9471bdc5-4c4d-43f9-a23
+  gcp:region: asia-southeast2
+  gcp:zone: asia-southeast2-a
+  playback-infra-gcloud:machineType: e2-micro
+  playback-infra-gcloud:appName: playback-staging
+  playback-infra-gcloud:sshPublicKey: ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQC+QAKKNqWCGUejWzk4i/jXgeEJ/keN72wZrV57i0kara113SS/VqTSzanHCFzcN4BcIhTzL/ZYr9vRh1gKCFVqP+exGbf1jo/7Eo0L0NvXAyi3R7lvKMW90GKuOcYRnlz+uHx8CDGQqWpSzQYSAH7sVWerCS1ttGOLp7ca4wYS3ShjllKEA0PDAa4j9NQJ+2CZ8cN6knVOVUjkFxOR2mM5SldPzwYJYJY+7cKz78rMjjQqXYhqFWZaIdO5FKIVPl/RYbLWUEoti6ypRpL8IDd0npSTKN820lz6p0rUZqdAqTAbrVxn30C/+5AtTZdKhu2tZeDAdwH/7epKyvawvv5UVdCX5Zw/Xpki05gYfhnzHGoOuMBnvpcs585FvpHzkfrtERViBGRFQYOU2KCyIOs8ex390G/6hbhiR5KBROXNYZKmZSiqptLB4XVIMRZ3KmxR7IqgvfxgjXoVwvmJ4sjva9ZoI0WVRfenFLpIWV/o4lqQDiLI2QXT64Z3Wl2+iaM= laggingmatt
+  playback-infra-gcloud:mongoUri:
+    secure: AAABAIpfZjgW07axWfGDS+ea5QAEg1Uodi/erU/pG0VGpvTTAsXC5gZL+yAlzT0b+R6hqK4q6p2u3t2zWvT5Gf5YylY8/0K8GAa7mrPh8tznWLudNjqhZG31Fe0WWAtd3M7DYtYfLRHq4XhKpbWF+eNZWq4iJxvKvMdKdP6WBHguJVEmmWbaDvHe
+  playback-infra-gcloud:azureStorageConnectionString:
+    secure: AAABAJjCYUZlWosrJ1fzNHZrRGdZ+MuWj6d3Dr0V2vJhCpLAyjhDV7yPY3/FIBJOYL1LET3kEv2Z0nV6x0h210A723HCw/e2TUjfzw326cv1J4gaFX/23fickTZI1O8aubNS3x2tf9BSLHOS/mLfJGActxVAHVspjiLbT2yIfArwPTp/S/jp0swuVUskMyzbKadurHHMzaxIJoe3qB0RgQlC0x4wWH3+mVxAcsn2C/92OJPM84CFHA1LT0v3FQKG3L+AoGF5EnNU6yXNwbD/ggYMnm7ksuBB3Og5Dlv3nnz3L/sHKLJsVhuG8dVN/hIS8PZ7HALr9lvKjS/sWqxydz4l8Vb5+u0+0BsGLxqvWe5RfpwGkoLe7Ak717L9aN4yjdzaBZphAimMzaT15IKKU08/fQB3XTaI/YPQSyzGex+JRTlJ13gIY8W/3PYU6V4fFNyBCLB6srvtAKkOu0MXaSBJduE0KZ6fM/vZr6RuyIQqSH/sRj2B4rfLxG31hAqfQXJwd0ghW+RR4AHU7IaX5eItNqrvIdUwE78CXYkAT5hAxSatrknVpCLN7uNes5HF3E0CEWco3aUIKqy3t3WvAZ/csjfCcsLM+V69SHOHtHd73DTM/PqjEPwGcq1yQzF3Z0hKjhPQ
+  playback-infra-gcloud:domain: playback.rachmat.pro
+  playback-infra-gcloud:authProvider: entra
+  playback-infra-gcloud:entraClientId:
+    secure: AAABAOOAPYr0oZhaVUCec9Q1JMuaUXwR0eMFkl68xhZHk86U7pK2DU5ljt4bTshhRQcRPEuCCh1+S7S9hpRsJcSgw8Y=
+  playback-infra-gcloud:entraTenantId:
+    secure: AAABAEyDnJK35hXuLUz5cDE3MqyEzqjUljDAQYFADkNju9MVTQ3ZVzX9b+khYuK0m0syAFJZsJv0GbKPNjMUcRWnZuo=
+  playback-infra-gcloud:entraClientSecret:
+    secure: AAABAEbf5zVNaJxXzz+aRvFY6k/ycUSeyBvJi/L9/OFN5fITEJ+ybsAXRJzKD0CUrD18I9hpVk494biE+zz+16noJG/uoBrq
+  playback-infra-gcloud:entraRedirectUri: https://playback.rachmat.pro/auth/callback
+  playback-infra-gcloud:entraLogoutUri: https://playback.rachmat.pro/auth/logout/callback
+  playback-infra-gcloud:sessionKey:
+    secure: AAABAGmcYMRNrWgAk8s8N21VEP4/aWy1PGljr7QntLJE46B6eySDAt13hVaTQv/aFXAbo0Wm51Jzt2qp1L5UuvWbNoEtWelLsVx4x15uuAWDfptFn7qsZw0jNEErIkK4
+  playback-infra-gcloud:sessionPassword:
+    secure: AAABAAPSETzKhCbYt9yeDvjttJus2Rv2WjBOFE4zz52kZlz7gMMY1FRa0CqjOAsZ4UknwRZcCfXRXA++ms97yOFtS34PFcQhtyqOBg==
+  playback-infra-gcloud:importApiKey:
+    secure: AAABABCacqEmGHoVU4cWhGa5gkuREk2wfF+o2S6Y3fwRbkVYNvUVtqdxD5B0Dvx5KVDwUiQwGGIP/wZ5qD+nW1WAAE8KIemGgNm7tJ+LOJsZKIwNXiV7bP/Lj2Z1A4Ec

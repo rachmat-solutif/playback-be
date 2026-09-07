@@ -1,0 +1,20 @@
+{
+  "name": "playback-infra-gcloud",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Pulumi infrastructure for Playback staging (GCP e2 VM)",
+  "main": "index.ts",
+  "scripts": {
+    "build": "tsc",
+    "preview": "pulumi preview --stack staging",
+    "up": "pulumi up --stack staging",
+    "destroy": "pulumi destroy --stack staging"
+  },
+  "dependencies": {
+    "@pulumi/gcp": "8.31.0",
+    "@pulumi/pulumi": "3.253.0"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3"
+  }
+}

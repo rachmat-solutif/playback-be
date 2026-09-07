@@ -1,0 +1,10 @@
+node_modules
+dist
+dist-server
+.git
+.github
+examples
+*.md
+.env*
+docker-compose*
+deploy.zip

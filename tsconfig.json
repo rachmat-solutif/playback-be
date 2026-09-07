@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "esModuleInterop": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "outDir": "./src/dist-server",
+    "rootDir": "./src/server",
+    "baseUrl": ".",
+    "paths": {
+      "@server/*": ["./src/server/*"]
+    }
+  },
+  "include": ["src/server/**/*.ts"],
+  "exclude": ["node_modules", "dist", "dist-server", "src/server/__tests__"]
+}

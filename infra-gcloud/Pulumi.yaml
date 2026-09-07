@@ -1,0 +1,11 @@
+name: playback-infra-gcloud
+runtime:
+  name: nodejs
+  options:
+    typescript: true
+description: GCP infrastructure for Playback staging (Compute Engine e2 VM)
+config:
+  gcp:region:
+    value: asia-southeast2
+  gcp:zone:
+    value: asia-southeast2-a

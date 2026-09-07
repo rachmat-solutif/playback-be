@@ -1,0 +1,24 @@
+node_modules
+dist
+dist-ssr
+dist-server
+src/dist-server
+*.local
+.DS_Store
+*.wav
+*.mp3
+large-audio/
+
+# Environment files (may contain secrets)
+.env
+.env.development
+.env.staging
+.env.test
+.env.production
+.env.import
+
+# Generated bulk-import fixture (create with examples/import/generate-bulk.cjs)
+examples/import/bulk-import.json
+
+# MongoDB snapshots may contain sensitive customer data
+backups/
