@@ -10,6 +10,8 @@ export default defineConfig({
       NODE_ENV: 'test',
       // Isolated from dev dummy data (childapp). .env.test or shell MONGO_URI overrides this.
       MONGO_URI: 'mongodb://localhost:27017/childapp_test',
+      DOCS_BASIC_USER: 'user123',
+      DOCS_BASIC_PASS: 'user123',
     },
     // Run sequentially -- tests share a single MongoDB test database
     pool: 'forks',

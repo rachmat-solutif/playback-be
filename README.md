@@ -149,6 +149,8 @@ Copy `.env.development.example` to `.env.development` (also `.env.staging`, `.en
 | `REMOTE_AUDIO_TIMEOUT_SECONDS` | -- | `300` | 5-600 |
 | `REMOTE_AUDIO_MAX_REDIRECTS` | -- | `3` | 0-5 |
 | `IMPORT_API_KEY` | -- | -- | `Bearer` token for `POST /api/import` scripts |
+| `DOCS_BASIC_USER` | -- | `user123` | Scalar docs Basic Auth user (`/docs`, `/docs/json`) - `docs/API_DOCS.md` |
+| `DOCS_BASIC_PASS` | -- | `user123` | Scalar docs Basic Auth password - change in staging/production |
 | `LOG_LEVEL` | -- | `info` | `trace` / `debug` / `info` / `warn` / `error` |
 | `SERVICE_NAME` | -- | `playback-server` | Pino base binding |
 
@@ -178,9 +180,12 @@ Copy `.env.development.example` to `.env.development` (also `.env.staging`, `.en
 
 All `/api/*` routes require a valid session cookie (`entra` or `dummy` `POST /auth/login`) or `AUTH_BYPASS=true` in dev. Import routes also accept `Authorization: Bearer <IMPORT_API_KEY>`.
 
+**API Docs (Scalar):** Interactive reference at `GET /docs/` (prompts Basic Auth `DOCS_BASIC_USER`/`DOCS_BASIC_PASS` default `user123:user123`) + machine spec `GET /docs/json` / `GET /docs/yaml` (same Basic). All three are gated -- no session needed. Change via ENV in Vercel Console > Settings > Environment Variables (then Redeploy). Detail and troubleshooting: `docs/API_DOCS.md`.
+
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/health` | Health check (public) |
+| GET | `/docs/` (Scalar UI), `/docs/json`, `/docs/yaml`, `/docs/js/scalar.js` | Scalar API Reference + OpenAPI 3.0.3 spec + client bundle -- all Basic Auth `DOCS_BASIC_USER`/`DOCS_BASIC_PASS` (`docs/API_DOCS.md`) |
 | GET/POST | `/auth/login`, `/auth/callback`, `/auth/logout`, `/auth/me` | Entra SSO, dummy `user/123456`, or bypass |
 | GET | `/api/conversations` | List with filters: `from`, `to`, `agent`, `channel`, `sentiment`, `tag`, `keyword`, `minDuration`, `page`, `limit` |
 | GET | `/api/conversations/:id` | Detail with agent, customer, tags, transcript, audio, metrics |
@@ -306,6 +311,7 @@ See `infra-gcloud/README.md` and `docs/DEVOPS-AZURE-AUDIO.md` for full runbook (
 
 | Doc | Contents |
 |-----|----------|
+| `docs/API_DOCS.md` | **Scalar API docs (`/docs/` + `/docs/json` Basic `user123:user123`, ENV rotation, adding Zod schemas, Vercel bundling, troubleshooting)** -- start here for docs |
 | `docs/VERCEL_STAGING_SETUP.md` | **Vercel free staging (Atlas + Entra + Blob) -- start here** |
 | `docs/HIGH-LEVEL-DESIGN.md` | System architecture and data flow |
 | `docs/DB_SCHEMA.md` | Collection shapes and indexes |

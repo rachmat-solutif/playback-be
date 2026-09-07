@@ -56,6 +56,9 @@ export const envSchema = z
     REMOTE_AUDIO_MAX_REDIRECTS: z.coerce.number().int().min(0).max(5).default(3),
     APP_ORIGINS: z.string().optional(),
 
+    DOCS_BASIC_USER: z.string().min(1).default('user123'),
+    DOCS_BASIC_PASS: z.string().min(1).default('user123'),
+
     LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error']).default('info'),
     SERVICE_NAME: z.string().default('playback-server'),
 

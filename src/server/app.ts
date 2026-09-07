@@ -18,6 +18,7 @@ import { registerAuthGuard } from './auth/guard.js';
 import { entraAuthRoutes } from './auth/entra.js';
 import { bypassAuthRoutes } from './auth/bypass.js';
 import { dummyAuthRoutes } from './auth/dummy.js';
+import { docsPlugin } from './plugins/docs.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, '..', '..');
@@ -97,6 +98,13 @@ export async function buildApp(options: { disableAuth?: boolean } = {}) {
     max: 100,
     timeWindow: '1 minute',
   });
+
+  // --- API docs (Scalar) gated with Basic Auth -- both /docs and /docs/json ---
+  // Independent from AUTH_PROVIDER guard; uses DOCS_BASIC_USER/PASS (Vercel env)
+  // Skipped when disableAuth is true (vitest isolated tests)
+  if (!options.disableAuth) {
+    await app.register(docsPlugin);
+  }
 
   // --- Session management ---
   await registerSession(app);
