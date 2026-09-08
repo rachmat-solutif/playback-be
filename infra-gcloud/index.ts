@@ -31,6 +31,9 @@ const importApiKey = config.getSecret("importApiKey");
 const sshPublicKey = config.require("sshPublicKey");
 const deployUser = config.get("deployUser") || "deploy";
 
+// Deployment path on VM -- replaces hardcoded /opt/playback
+const appDir = config.get("appDir") || "/opt/playback";
+
 // Optional domain (if set, Caddy will auto-configure HTTPS for it)
 const domain = config.get("domain") || "";
 
@@ -120,11 +123,11 @@ if ! id "${deployUser}" &>/dev/null; then
 fi
 
 # Create app directory
-mkdir -p /opt/playback
-chown ${deployUser}:${deployUser} /opt/playback
+mkdir -p ${appDir}
+chown ${deployUser}:${deployUser} ${appDir}
 
 # Write environment file
-cat > /opt/playback/.env <<EOF
+cat > ${appDir}/.env <<EOF
 NODE_ENV=${nodeEnv}
 PORT=3000
 MONGO_URI=${mongoUri}
@@ -136,19 +139,19 @@ AUTH_PROVIDER=${authProvider}
 EOF
 
 # Add optional Entra ID config
-${entraClientId ? pulumi.interpolate`echo "ENTRA_CLIENT_ID=${entraClientId}" >> /opt/playback/.env` : "true"}
-${entraTenantId ? pulumi.interpolate`echo "ENTRA_TENANT_ID=${entraTenantId}" >> /opt/playback/.env` : "true"}
-${entraClientSecret ? pulumi.interpolate`echo "ENTRA_CLIENT_SECRET=${entraClientSecret}" >> /opt/playback/.env` : "true"}
-${entraRedirectUri ? pulumi.interpolate`echo "ENTRA_REDIRECT_URI=${entraRedirectUri}" >> /opt/playback/.env` : "true"}
-${entraLogoutUri ? pulumi.interpolate`echo "ENTRA_LOGOUT_URI=${entraLogoutUri}" >> /opt/playback/.env` : "true"}
-${importApiKey ? pulumi.interpolate`echo "IMPORT_API_KEY=${importApiKey}" >> /opt/playback/.env` : "true"}
+${entraClientId ? pulumi.interpolate`echo "ENTRA_CLIENT_ID=${entraClientId}" >> ${appDir}/.env` : "true"}
+${entraTenantId ? pulumi.interpolate`echo "ENTRA_TENANT_ID=${entraTenantId}" >> ${appDir}/.env` : "true"}
+${entraClientSecret ? pulumi.interpolate`echo "ENTRA_CLIENT_SECRET=${entraClientSecret}" >> ${appDir}/.env` : "true"}
+${entraRedirectUri ? pulumi.interpolate`echo "ENTRA_REDIRECT_URI=${entraRedirectUri}" >> ${appDir}/.env` : "true"}
+${entraLogoutUri ? pulumi.interpolate`echo "ENTRA_LOGOUT_URI=${entraLogoutUri}" >> ${appDir}/.env` : "true"}
+${importApiKey ? pulumi.interpolate`echo "IMPORT_API_KEY=${importApiKey}" >> ${appDir}/.env` : "true"}
 
 # Add optional session config
-${sessionKey ? pulumi.interpolate`echo "SESSION_KEY=${sessionKey}" >> /opt/playback/.env` : "true"}
-${sessionPassword ? pulumi.interpolate`echo "SESSION_PASSWORD=${sessionPassword}" >> /opt/playback/.env` : "true"}
+${sessionKey ? pulumi.interpolate`echo "SESSION_KEY=${sessionKey}" >> ${appDir}/.env` : "true"}
+${sessionPassword ? pulumi.interpolate`echo "SESSION_PASSWORD=${sessionPassword}" >> ${appDir}/.env` : "true"}
 
-chmod 600 /opt/playback/.env
-chown ${deployUser}:${deployUser} /opt/playback/.env
+chmod 600 ${appDir}/.env
+chown ${deployUser}:${deployUser} ${appDir}/.env
 
 # Create systemd service
 cat > /etc/systemd/system/playback.service <<EOF
@@ -159,8 +162,8 @@ After=network.target
 [Service]
 Type=simple
 User=${deployUser}
-WorkingDirectory=/opt/playback
-EnvironmentFile=/opt/playback/.env
+WorkingDirectory=${appDir}
+EnvironmentFile=${appDir}/.env
 ExecStart=/usr/bin/node src/dist-server/app.js
 Restart=on-failure
 RestartSec=5

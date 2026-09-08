@@ -11,13 +11,15 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-# Get deploy target from argument or Pulumi output
+# Get deploy target and app dir from argument or Pulumi output
 if [ -n "$1" ]; then
   DEPLOY_TARGET="$1"
+  APP_DIR=$(pulumi config get appDir --stack staging 2>/dev/null || echo "/opt/playback")
 else
   echo "[*] Reading deploy target from Pulumi outputs..."
   cd "$SCRIPT_DIR"
   DEPLOY_USER=$(pulumi config get deployUser --stack staging 2>/dev/null || echo "deploy")
+  APP_DIR=$(pulumi config get appDir --stack staging 2>/dev/null || echo "/opt/playback")
   EXTERNAL_IP=$(pulumi stack output externalIp --stack staging)
   DEPLOY_TARGET="${DEPLOY_USER}@${EXTERNAL_IP}"
   cd "$PROJECT_ROOT"
@@ -37,19 +39,19 @@ SSH_OPTS="-i ~/.ssh/gcp_key -o StrictHostKeyChecking=no"
 
 rsync -avz -e "ssh ${SSH_OPTS}" \
   "$PROJECT_ROOT/dist/" \
-  "${DEPLOY_TARGET}:/opt/playback/dist/"
+  "${DEPLOY_TARGET}:${APP_DIR}/dist/"
 rsync -avz -e "ssh ${SSH_OPTS}" \
   "$PROJECT_ROOT/src/dist-server/" \
-  "${DEPLOY_TARGET}:/opt/playback/src/dist-server/"
+  "${DEPLOY_TARGET}:${APP_DIR}/src/dist-server/"
 rsync -avz -e "ssh ${SSH_OPTS}" \
   "$PROJECT_ROOT/package.json" \
   "$PROJECT_ROOT/package-lock.json" \
-  "${DEPLOY_TARGET}:/opt/playback/"
+  "${DEPLOY_TARGET}:${APP_DIR}/"
 
 # 3. Install production dependencies and restart service on the VM
 echo "[3/4] Installing dependencies and restarting service..."
-ssh -i ~/.ssh/gcp_key -o StrictHostKeyChecking=no "$DEPLOY_TARGET" << 'REMOTE_COMMANDS'
-cd /opt/playback
+ssh -i ~/.ssh/gcp_key -o StrictHostKeyChecking=no "$DEPLOY_TARGET" << REMOTE_COMMANDS
+cd ${APP_DIR}
 npm ci --omit=dev
 sudo systemctl restart playback
 REMOTE_COMMANDS

@@ -85,7 +85,7 @@ cp .env.development.example .env.development
 #   AZURE_STORAGE_ACCOUNT_NAME=...
 #   AZURE_STORAGE_CONTAINER=audio
 #   # Optional tuning: DOCS_BASIC_USER/PASS, AUDIO_SAS_EXPIRY_MINUTES, AUDIO_SAS_CLOCK_SKEW_MINUTES,
-#   # REMOTE_AUDIO_TIMEOUT_SECONDS, REMOTE_AUDIO_MAX_REDIRECTS, APP_ORIGINS
+#   # REMOTE_AUDIO_TIMEOUT_SECONDS, REMOTE_AUDIO_MAX_REDIRECTS, APP_ORIGINS, appDir (Pulumi: /opt/playback)
 # See docs/LOCAL-AZURE-AUDIO-CHECKLIST.md for container/CORS setup and
 # docs/DEVOPS-AZURE-AUDIO.md for Entra app registration.
 
@@ -157,8 +157,10 @@ Copy `.env.development.example` to `.env.development` (also `.env.staging`, `.en
 | `DOCS_BASIC_PASS` | -- | `user123` | Scalar docs Basic Auth password - change in staging/production; example uses `user234` |
 | `LOG_LEVEL` | -- | `info` | `trace` / `debug` / `info` / `warn` / `error` |
 | `SERVICE_NAME` | -- | `playback-server` | Pino base binding |
+| `APP_ORIGINS` | -- | -- | CORS origins (`https://playback.rachmat.pro`, `Pulumi: appOrigins`) |
+| `appDir` (Pulumi) | -- | `/opt/playback` | Deployment path on VM (`infra-gcloud/index.ts:35` `config.get("appDir")` -> `playback-infra-gcloud:appDir` in `Pulumi.staging.yaml`); `WorkingDirectory`/`EnvironmentFile` + `deploy.sh:22` `APP_DIR` |
 
-`AUTH_PROVIDER` must be `entra` or `dummy` in `staging`/`production`; `AUTH_BYPASS=true` rejected there; `SESSION_KEY` (AES-256 encryption key) + `SESSION_PASSWORD` (signing secret) both required for `entra`/`dummy` (`config.ts:21/112`) to encrypt `session` cookie (`session.ts:34` `userId/roles` + Entra `pkceVerifier/authState`), missing either breaks session (`session.ts:28` -> `401`). See `docs/LOCAL-AZURE-AUDIO-CHECKLIST.md`. Seeds guarded: `SEED_GUARD=SAYA_SADAR_DROPDB_{HH}:{MM}` (e.g. `SAYA_SADAR_DROPDB_14:05`).
+`AUTH_PROVIDER` must be `entra` or `dummy` in `staging`/`production`; `AUTH_BYPASS=true` rejected there; `SESSION_KEY` (AES-256 encryption key) + `SESSION_PASSWORD` (signing secret) both required for `entra`/`dummy` (`config.ts:21/112`) to encrypt `session` cookie (`session.ts:34` `userId/roles` + Entra `pkceVerifier/authState`), missing either breaks session (`session.ts:28` -> `401`). `appDir` configurable via `pulumi config set appDir /opt/playback --stack staging`. See `docs/LOCAL-AZURE-AUDIO-CHECKLIST.md`. Seeds guarded: `SEED_GUARD=SAYA_SADAR_DROPDB_{HH}:{MM}` (e.g. `SAYA_SADAR_DROPDB_14:05`).
 
 > **Security:** Generate **unique** `SESSION_KEY`/`SESSION_PASSWORD` per env (`dev` != `staging` != `prod`) via `openssl rand -hex 32` / `openssl rand -base64 32`. Reusing same values across envs lets a leak in `dev` (git history, `.env`, logs) forge a valid encrypted `session` cookie for `prod` (`@fastify/secure-session` `session.ts:34`, `guard.ts:63`), bypassing login. Store as `pulumi config set --secret` per stack / Vercel per env, never commit, rotate on leak (`pulumi up` rewrites `/opt/playback/.env` `index.ts:130`).
 
@@ -286,7 +288,7 @@ Full installation guide: `docs/VERCEL_STAGING_SETUP.md` (Atlas free cluster, Blo
 Quick connect:
 
 - Vercel: Import `rachmat-solutif/playback-be` (branch `main`), Framework `Other`, Build `npm run build`, Node `22.x`, Domain `playback-be-staging.vercel.app`.
-- Env (Production): `NODE_ENV=staging`, `MONGO_URI` (Atlas `.../childapp?...`), `AUTH_PROVIDER=dummy` (`POST /auth/login`) or `entra` (`GET /auth/login` -> Entra), `ENTRA_*` only when `entra` (`REDIRECT_URI=https://playback-be-staging.vercel.app/auth/callback`), `SESSION_KEY` (`openssl rand -hex 32` -- AES-256 key for `@fastify/secure-session`, both `SESSION_*` required for `entra`/`dummy` `config.ts:21/112` `session.ts:28/34`) + `SESSION_PASSWORD` (`openssl rand -base64 32` -- signing secret, both encrypt session cookie `userId/roles` + `pkceVerifier`), `AZURE_STORAGE_*` + `AUDIO_SAS_*` + `APP_ORIGINS=https://playback-be-staging.vercel.app`. `AUTH_BYPASS` must not be set in staging. Seed: `SEED_GUARD=SAYA_SADAR_DROPDB_$(date +%H:%M) npm run db:seed` (e.g. `SAYA_SADAR_DROPDB_14:05`, 1-row phone) locally against Atlas.
+- Env (Production): `NODE_ENV=staging`, `MONGO_URI` (Atlas `.../childapp?...`), `AUTH_PROVIDER=dummy` (`POST /auth/login`) or `entra` (`GET /auth/login` -> Entra), `ENTRA_*` only when `entra` (`REDIRECT_URI=https://playback-be-staging.vercel.app/auth/callback`), `SESSION_KEY` (`openssl rand -hex 32` -- AES-256 key for `@fastify/secure-session`, both `SESSION_*` required for `entra`/`dummy` `config.ts:21/112` `session.ts:28/34`) + `SESSION_PASSWORD` (`openssl rand -base64 32` -- signing secret, both encrypt session cookie `userId/roles` + `pkceVerifier`), `AZURE_STORAGE_*` + `AUDIO_SAS_*` + `APP_ORIGINS=https://playback-be-staging.vercel.app` + Pulumi `appDir=/opt/playback` (`infra-gcloud/index.ts:35`). `AUTH_BYPASS` must not be set in staging. Seed: `SEED_GUARD=SAYA_SADAR_DROPDB_$(date +%H:%M) npm run db:seed` (e.g. `SAYA_SADAR_DROPDB_14:05`, 1-row phone) locally against Atlas.
 - Deploy on push to `main`; verify `curl -fsS https://playback-be-staging.vercel.app/health` and Entra login flow.
 
 ### Staging -- GCP (archival alternative)
@@ -305,6 +307,7 @@ pulumi config set --secret mongoUri "..."
 pulumi config set --secret azureStorageConnectionString "..."
 pulumi config set --secret sessionKey "$(openssl rand -hex 32)"  # 64 hex AES key -- both SESSION_* required for secure-session (session.ts:34)
 pulumi config set --secret sessionPassword "$(openssl rand -base64 32)"  # signing secret -- both encrypt session cookie (userId/roles/pkce)
+pulumi config set appDir "/opt/playback"  # deployment path (infra-gcloud/index.ts:35, deploy.sh:22)
 # ... see infra-gcloud/README.md
 npm run gcloud:up
 npm run gcloud:deploy
