@@ -61,26 +61,30 @@ npm install
 
 # 3. Configure env -- copy example and edit
 cp .env.development.example .env.development
-# Edit .env.development. Minimal local setup:
+# Edit .env.development. Minimal local setup (dummy, DB-backed, no Entra):
 #   MONGO_URI=mongodb://localhost:27017/childapp  # or Atlas URI if you skipped step 1
-#   AUTH_BYPASS=true            # offline dev, no Entra needed (dev/test only)
+#   AUTH_PROVIDER=dummy           # local dummy login POST /auth/login {user,123456}
+#   SESSION_KEY=...               # openssl rand -hex 32 (64 hex) -- BOTH required for dummy/entra: AES-256 key for @fastify/secure-session cookie encryption (Buffer.from hex, 32-byte, session.ts:34)
+#   SESSION_PASSWORD=...          # openssl rand -base64 32 -- BOTH required: signing secret for session integrity; missing either -> plugin not registered -> 401 on /api/* and /auth/me (session.ts:28, config.ts:21/112)
+#   AUTH_BYPASS=false             # keep false for dummy; true = offline dev returns dev-user (no DB)
+#   DOCS_BASIC_USER=user234       # Scalar /docs Basic Auth (example)
+#   DOCS_BASIC_PASS=user234
 #   # Audio works without Azure -- uses public/audio/sample-call.wav fallback
 #
-# For full local parity with staging/prod, also configure:
-#   # Auth -- Microsoft Entra ID SSO
+# For Entra SSO parity with staging/prod, instead configure:
 #   AUTH_PROVIDER=entra
 #   ENTRA_CLIENT_ID=...
 #   ENTRA_TENANT_ID=...
 #   ENTRA_CLIENT_SECRET=...
 #   ENTRA_REDIRECT_URI=http://localhost:3000/auth/callback
 #   ENTRA_LOGOUT_URI=http://localhost:3000/login
-#   SESSION_KEY=...             # openssl rand -hex 32
-#   SESSION_PASSWORD=...        # openssl rand -base64 32
+#   SESSION_KEY=...               # openssl rand -hex 32 -- BOTH required: AES-256 key for @fastify/secure-session (32-byte)
+#   SESSION_PASSWORD=...          # openssl rand -base64 32 -- BOTH required: signing secret; both store userId/email/roles/expiresAt + pkceVerifier/authState in encrypted cookie
 #   # Audio -- Azure Blob Storage (private container, SAS URLs)
 #   AZURE_STORAGE_CONNECTION_STRING=DefaultEndpointsProtocol=https;AccountName=...;AccountKey=...;EndpointSuffix=core.windows.net
 #   AZURE_STORAGE_ACCOUNT_NAME=...
 #   AZURE_STORAGE_CONTAINER=audio
-#   # Optional tuning: AUDIO_SAS_EXPIRY_MINUTES, AUDIO_SAS_CLOCK_SKEW_MINUTES,
+#   # Optional tuning: DOCS_BASIC_USER/PASS, AUDIO_SAS_EXPIRY_MINUTES, AUDIO_SAS_CLOCK_SKEW_MINUTES,
 #   # REMOTE_AUDIO_TIMEOUT_SECONDS, REMOTE_AUDIO_MAX_REDIRECTS, APP_ORIGINS
 # See docs/LOCAL-AZURE-AUDIO-CHECKLIST.md for container/CORS setup and
 # docs/DEVOPS-AZURE-AUDIO.md for Entra app registration.
@@ -135,26 +139,28 @@ Copy `.env.development.example` to `.env.development` (also `.env.staging`, `.en
 | `NODE_ENV` | -- | `development` | `development` / `staging` / `production` / `test` |
 | `PORT` | -- | `3000` | Fastify listen port |
 | `MONGO_URI` | yes | -- | `mongodb://localhost:27017/childapp` locally |
-| `AUTH_PROVIDER` | -- | `none` | `entra` or `dummy` in staging/production (`dummy` = local user/123456, no Entra) |
-| `AUTH_BYPASS` | -- | `false` | `true` allows offline dev (blocked in staging/prod) |
+| `AUTH_PROVIDER` | -- | `none` | `entra` (SSO) or `dummy` (local `user/123456`, no Entra) in staging/production; `GET /auth/login` = Entra, `POST /auth/login` = Dummy (see `src/server/auth/index.ts`) |
+| `AUTH_BYPASS` | -- | `false` | `true` offline dev (blocked in staging/prod); bypass `POST /auth/login` returns `dev-user` |
 | `ENTRA_CLIENT_ID / TENANT_ID / CLIENT_SECRET / REDIRECT_URI` | when `AUTH_PROVIDER=entra` | -- | See `docs/DEVOPS-AZURE-AUDIO.md` |
-| `ENTRA_LOGOUT_URI` | -- | -- | Post-logout redirect |
-| `SESSION_KEY` | when entra or dummy | -- | `openssl rand -hex 32` (64 hex chars) |
-| `SESSION_PASSWORD` | when entra or dummy | -- | `openssl rand -base64 32` |
+| `ENTRA_LOGOUT_URI` | -- | -- | Post-logout redirect (`Pulumi: entraLogoutUri`) |
+| `SESSION_KEY` | when `entra` or `dummy` (both required) | -- | `openssl rand -hex 32` (64 hex, 32-byte) -- AES-256 encryption `key` for `@fastify/secure-session` cookie (`Buffer.from(...,'hex')` `session.ts:34` stores `userId/email/name/roles/expiresAt` + `pkceVerifier/authState`); missing either `SESSION_*` -> plugin not registered (`session.ts:28`) -> `401` on `/api/*`+`/auth/me` |
+| `SESSION_PASSWORD` | when `entra` or `dummy` (both required) | -- | `openssl rand -base64 32` -- signing secret for `@fastify/secure-session` cookie integrity; both `SESSION_KEY`+`SESSION_PASSWORD` required for any real auth (`config.ts:21/112`, staging/prod `ValidationError` if missing) |
 | `AZURE_STORAGE_CONNECTION_STRING` | -- | -- | Private container; app never creates it |
 | `AZURE_STORAGE_ACCOUNT_NAME` | -- | -- | Needed for SAS generation |
-| `AZURE_STORAGE_CONTAINER` | -- | `audio` | Blob container name |
-| `AUDIO_SAS_EXPIRY_MINUTES` | -- | `60` | 5-60 |
+| `AZURE_STORAGE_CONTAINER` | -- | `audio` | Blob container name (`Pulumi: azureStorageContainer`) |
+| `AUDIO_SAS_EXPIRY_MINUTES` | -- | `60` | 5-60 (`Pulumi: audioSasExpiryMinutes`) |
 | `AUDIO_SAS_CLOCK_SKEW_MINUTES` | -- | `5` | 1-15, backdates SAS `st` |
 | `REMOTE_AUDIO_TIMEOUT_SECONDS` | -- | `300` | 5-600 |
 | `REMOTE_AUDIO_MAX_REDIRECTS` | -- | `3` | 0-5 |
-| `IMPORT_API_KEY` | -- | -- | `Bearer` token for `POST /api/import` scripts |
-| `DOCS_BASIC_USER` | -- | `user123` | Scalar docs Basic Auth user (`/docs`, `/docs/json`) - `docs/API_DOCS.md` |
-| `DOCS_BASIC_PASS` | -- | `user123` | Scalar docs Basic Auth password - change in staging/production |
+| `IMPORT_API_KEY` | -- | -- | `Bearer` token for `POST /api/import` scripts (`Pulumi: importApiKey` secret) |
+| `DOCS_BASIC_USER` | -- | `user123` | Scalar docs Basic Auth user (`/docs`, `/docs/json`) - `docs/API_DOCS.md`; example `.env.development` uses `user234` |
+| `DOCS_BASIC_PASS` | -- | `user123` | Scalar docs Basic Auth password - change in staging/production; example uses `user234` |
 | `LOG_LEVEL` | -- | `info` | `trace` / `debug` / `info` / `warn` / `error` |
 | `SERVICE_NAME` | -- | `playback-server` | Pino base binding |
 
-`AUTH_PROVIDER` must be `entra` or `dummy` in `staging`/`production`; `AUTH_BYPASS=true` is rejected there. See `docs/LOCAL-AZURE-AUDIO-CHECKLIST.md` for local Azure audio. Seeds are guarded: `SEED_GUARD=SAYA_SADAR_DROPDB_{HH}:{MM}` (e.g. `SAYA_SADAR_DROPDB_14:05` for current `HH:MM`) required; invalid guard prints the correct value.
+`AUTH_PROVIDER` must be `entra` or `dummy` in `staging`/`production`; `AUTH_BYPASS=true` rejected there; `SESSION_KEY` (AES-256 encryption key) + `SESSION_PASSWORD` (signing secret) both required for `entra`/`dummy` (`config.ts:21/112`) to encrypt `session` cookie (`session.ts:34` `userId/roles` + Entra `pkceVerifier/authState`), missing either breaks session (`session.ts:28` -> `401`). See `docs/LOCAL-AZURE-AUDIO-CHECKLIST.md`. Seeds guarded: `SEED_GUARD=SAYA_SADAR_DROPDB_{HH}:{MM}` (e.g. `SAYA_SADAR_DROPDB_14:05`).
+
+> **Security:** Generate **unique** `SESSION_KEY`/`SESSION_PASSWORD` per env (`dev` != `staging` != `prod`) via `openssl rand -hex 32` / `openssl rand -base64 32`. Reusing same values across envs lets a leak in `dev` (git history, `.env`, logs) forge a valid encrypted `session` cookie for `prod` (`@fastify/secure-session` `session.ts:34`, `guard.ts:63`), bypassing login. Store as `pulumi config set --secret` per stack / Vercel per env, never commit, rotate on leak (`pulumi up` rewrites `/opt/playback/.env` `index.ts:130`).
 
 ## Scripts
 
@@ -180,12 +186,13 @@ Copy `.env.development.example` to `.env.development` (also `.env.staging`, `.en
 
 All `/api/*` routes require a valid session cookie (`entra` or `dummy` `POST /auth/login`) or `AUTH_BYPASS=true` in dev. Import routes also accept `Authorization: Bearer <IMPORT_API_KEY>`.
 
-**API Docs (Scalar):** Interactive reference at `GET /docs/` (prompts Basic Auth `DOCS_BASIC_USER`/`DOCS_BASIC_PASS` default `user123:user123`) + machine spec `GET /docs/json` / `GET /docs/yaml` (same Basic). All three are gated -- no session needed. Change via ENV in Vercel Console > Settings > Environment Variables (then Redeploy). Detail and troubleshooting: `docs/API_DOCS.md`.
+**API Docs (Scalar):** Interactive reference at `GET /docs/` (prompts Basic Auth `DOCS_BASIC_USER`/`DOCS_BASIC_PASS` default `user123:user123`, example `.env.development` `user234:user234`) + machine spec `GET /docs/json` / `GET /docs/yaml` (same Basic). All three are gated -- no session needed. Change via ENV in Vercel Console > Settings > Environment Variables (then Redeploy) or Pulumi not needed (BE-only). Detail and troubleshooting: `docs/API_DOCS.md`.
 
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/health` | Health check (public) |
 | GET | `/docs/` (Scalar UI), `/docs/json`, `/docs/yaml`, `/docs/js/scalar.js` | Scalar API Reference + OpenAPI 3.0.3 spec + client bundle -- all Basic Auth `DOCS_BASIC_USER`/`DOCS_BASIC_PASS` (`docs/API_DOCS.md`) |
+| GET | `/auth/config` | Auth discovery for FE -- `{authProvider,dummy|entra|none, authBypass, entraConfigured}` public, no session (`src/server/auth/index.ts:226`) |
 | GET/POST | `/auth/login`, `/auth/callback`, `/auth/logout`, `/auth/me` | Entra SSO, dummy `user/123456`, or bypass |
 | GET | `/api/conversations` | List with filters: `from`, `to`, `agent`, `channel`, `sentiment`, `tag`, `keyword`, `minDuration`, `page`, `limit` |
 | GET | `/api/conversations/:id` | Detail with agent, customer, tags, transcript, audio, metrics |
@@ -279,7 +286,7 @@ Full installation guide: `docs/VERCEL_STAGING_SETUP.md` (Atlas free cluster, Blo
 Quick connect:
 
 - Vercel: Import `rachmat-solutif/playback-be` (branch `main`), Framework `Other`, Build `npm run build`, Node `22.x`, Domain `playback-be-staging.vercel.app`.
-- Env (Production): `NODE_ENV=staging`, `MONGO_URI` (Atlas `.../childapp?...`), `AUTH_PROVIDER=dummy` (or `entra`), `ENTRA_*` only when `entra` (`REDIRECT_URI=https://playback-be-staging.vercel.app/auth/callback`), `SESSION_KEY` (`openssl rand -hex 32`), `SESSION_PASSWORD` (`openssl rand -base64 32`), `AZURE_STORAGE_*` + `AUDIO_SAS_*` + `APP_ORIGINS=https://playback-be-staging.vercel.app`. `AUTH_BYPASS` must not be set in staging. Seed: `SEED_GUARD=SAYA_SADAR_DROPDB_$(date +%H:%M) npm run db:seed` (e.g. `SAYA_SADAR_DROPDB_14:05`, 1-row phone) locally against Atlas.
+- Env (Production): `NODE_ENV=staging`, `MONGO_URI` (Atlas `.../childapp?...`), `AUTH_PROVIDER=dummy` (`POST /auth/login`) or `entra` (`GET /auth/login` -> Entra), `ENTRA_*` only when `entra` (`REDIRECT_URI=https://playback-be-staging.vercel.app/auth/callback`), `SESSION_KEY` (`openssl rand -hex 32` -- AES-256 key for `@fastify/secure-session`, both `SESSION_*` required for `entra`/`dummy` `config.ts:21/112` `session.ts:28/34`) + `SESSION_PASSWORD` (`openssl rand -base64 32` -- signing secret, both encrypt session cookie `userId/roles` + `pkceVerifier`), `AZURE_STORAGE_*` + `AUDIO_SAS_*` + `APP_ORIGINS=https://playback-be-staging.vercel.app`. `AUTH_BYPASS` must not be set in staging. Seed: `SEED_GUARD=SAYA_SADAR_DROPDB_$(date +%H:%M) npm run db:seed` (e.g. `SAYA_SADAR_DROPDB_14:05`, 1-row phone) locally against Atlas.
 - Deploy on push to `main`; verify `curl -fsS https://playback-be-staging.vercel.app/health` and Entra login flow.
 
 ### Staging -- GCP (archival alternative)
@@ -296,8 +303,8 @@ pulumi stack init staging
 # edit Pulumi.staging.yaml -> gcp:project
 pulumi config set --secret mongoUri "..."
 pulumi config set --secret azureStorageConnectionString "..."
-pulumi config set --secret sessionKey "$(openssl rand -hex 32)"
-pulumi config set --secret sessionPassword "$(openssl rand -base64 32)"
+pulumi config set --secret sessionKey "$(openssl rand -hex 32)"  # 64 hex AES key -- both SESSION_* required for secure-session (session.ts:34)
+pulumi config set --secret sessionPassword "$(openssl rand -base64 32)"  # signing secret -- both encrypt session cookie (userId/roles/pkce)
 # ... see infra-gcloud/README.md
 npm run gcloud:up
 npm run gcloud:deploy

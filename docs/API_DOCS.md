@@ -35,6 +35,7 @@ Browser fetch for `Scalar` JS (`/docs/js/scalar.js`) and spec (`/docs/json`) inh
 | `GET /docs/yaml` | Basic | Same spec as YAML. |
 | `GET /docs/js/scalar.js` | Basic | Scalar client bundle (~185 kB gzip, served from own origin). |
 | `GET /health` | public | Not gated, not in docs. |
+| `GET /auth/config` | public | Auth discovery for FE -- returns `{authProvider: entra|dummy|none, authBypass: boolean, entraConfigured: boolean}` (no session, `src/server/auth/index.ts:226`). FE: `entra` -> `GET /auth/login` redirect, `dummy` -> `POST /auth/login` form, `bypass` -> skip login. |
 | `GET /api/*`, `POST /api/*`, `GET /auth/*` | `entra`/`dummy`/`AUTH_BYPASS` or `Bearer IMPORT_API_KEY` for import | API itself -- see `README.md -- API Endpoints`. |
 
 Unauthenticated `/docs/*` returns `401 {"statusCode":401,"code":"FST_BASIC_AUTH_MISSING_OR_BAD_AUTHORIZATION_HEADER","error":"Unauthorized"}` with `WWW-Authenticate: Basic realm="..."` triggering the browser dialog. Tests bypass docs gate via `buildApp({disableAuth:true})` (`vitest.server.config.ts`).

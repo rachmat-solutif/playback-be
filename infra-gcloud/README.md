@@ -203,8 +203,8 @@ Set on the VM via `/opt/playback/.env` (managed by the startup script):
 | ENTRA_CLIENT_SECRET | Pulumi secret | Entra confidential-client secret |
 | ENTRA_REDIRECT_URI | Pulumi config | Environment callback URL |
 | ENTRA_LOGOUT_URI | Pulumi config | Environment post-logout URL |
-| SESSION_KEY | Pulumi secret | 32-byte hexadecimal secure-session key |
-| SESSION_PASSWORD | Pulumi secret | Secure-session password |
+| SESSION_KEY | Pulumi secret | 32-byte hex AES key for `@fastify/secure-session` (`session.ts:34`); **unique per stack** (staging != prod) -- reuse leaks forged prod cookie |
+| SESSION_PASSWORD | Pulumi secret | Signing secret for session cookie integrity; both `SESSION_*` required for `entra`/`dummy` (`config.ts:21/112`), missing either -> `401` |
 
 To update env vars after initial deploy, update Pulumi config and run `pulumi up`.
 Avoid editing `/opt/playback/.env` manually except for emergency recovery, then
